@@ -1,0 +1,66 @@
+{
+  "name": "mb_monitor",
+  "version": "1.0.0",
+  "private": true,
+  "main": "backend/index.js",
+  "dependencies": {
+    "@types/node": "^16.18.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "axios": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "morgan": "^1.10.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "typescript": "^4.9.5",
+    "zustand": "^4.3.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "scripts": {
+    "start": "node backend/index.js",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "dev": "nodemon backend/index.js"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/palheiro1/MB_Monitor.git"
+  },
+  "keywords": [
+    "blockchain",
+    "monitor",
+    "ardor",
+    "polygon"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/palheiro1/MB_Monitor/issues"
+  },
+  "homepage": "https://github.com/palheiro1/MB_Monitor#readme",
+  "description": "Monitoring tool for blockchain activities across multiple chains"
+}

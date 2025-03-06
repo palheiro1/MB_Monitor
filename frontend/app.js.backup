@@ -1,0 +1,1325 @@
+/**
+ * Mythical Beings Monitor - Frontend Application
+ * 
+ * This application monitors blockchain activities related to Mythical Beings NFTs.
+ * It provides real-time data visualization for trades, crafting, morphing, and other
+ * blockchain activities across Ardor and Polygon networks.
+ * 
+ * The application is structured into logical sections:
+ * - Configuration and initialization
+ * - Data fetching and API communication
+ * - UI rendering and visualization
+ * - Event handling
+ * - Helper utilities
+ * 
+ * @author MB Monitor Team
+ * @version 1.0.0
+ */
+
+document.addEventListener('DOMContentLoaded', function() {
+  /**
+   * APPLICATION CONFIGURATION
+   * 
+   * These constants define the application behavior and can be 
+   * overridden by environment variables or configuration passed from the server
+   */
+  const API_BASE_URL = '/api';  // Base URL for API endpoints
+  const REFRESH_INTERVAL = 60000; // Milliseconds between auto-refresh (60 seconds)
+  const DEFAULT_PERIOD = '30d'; // Default time period for data display
+
+  /**
+   * APPLICATION STATE
+   * 
+   * This object maintains the application's global state
+   * It includes UI state, data, and visualization objects
+   */
+  const state = {
+    currentPeriod: DEFAULT_PERIOD, // Active time period filter
+    activityChart: null, // Chart.js instance for activity timeline
+    networkChart: null, // Chart.js instance for network distribution
+    lastUpdate: null, // Timestamp of the last successful update
+    isLoading: false, // Whether data is currently being fetched
+    refreshTimer: null, // setInterval ID for auto-refresh
+    sortDirection: 'desc', // Default sorting order (newest first)
+    previousData: {}, // Previous data for comparison and animation
+    animationsEnabled: true, // Whether UI animations are enabled
+    
+    // Data storage properties - filled by API responses
+    statsData: null, // Overall statistics
+    activityData: null, // Time series data for charts
+    tradesData: null, // Trade transactions
+    giftzData: null, // Giftz sales
+    craftsData: null, // Card crafting events
+    morphsData: null, // Card morphing events
+    burnsData: null, // Card burning events
+    usersData: null, // User activity data
+    cacheData: null // Cache statistics for debugging
+  };
+
+  /**
+   * DOM ELEMENTS
+   * 
+   * This object maintains references to DOM elements used throughout the application
+   * Using this approach reduces DOM queries and improves performance
+   */
+  const elements = {
+    statusBadge: document.getElementById('status-badge'),
+    refreshBtn: document.getElementById('refresh-btn'),
+    refreshCacheBtn: document.getElementById('refresh-cache-stats'),
+    periodSelectors: document.querySelectorAll('.period-selector'),
+    lastUpdateSpan: document.getElementById('last-update'),
+    loadingOverlay: document.getElementById('loading-overlay'),
+    
+    // Charts
+    activityChart: document.getElementById('activity-chart'),
+    networkChart: document.getElementById('network-chart'),
+    
+    // Stats elements
+    totalTrades: document.getElementById('total-trades'),
+    activeUsers: document.getElementById('active-users'),
+    cardCrafts: document.getElementById('card-crafts'),
+    cardBurns: document.getElementById('card-burns'),
+    giftzSales: document.getElementById('giftz-sales'),
+    cardMorphs: document.getElementById('card-morphs'),
+    
+    // Tab content containers
+    ardorTradesCards: document.getElementById('ardor-trades-cards'),
+    polygonTradesCards: document.getElementById('polygon-trades-cards'),
+    giftzCards: document.getElementById('giftz-cards'),
+    craftsCards: document.getElementById('crafts-cards'),
+    morphsCards: document.getElementById('morphs-cards'),
+    burnsCards: document.getElementById('burns-cards'),
+    usersCards: document.getElementById('users-cards'),
+    
+    // Cache stats table
+    cacheStatsTable: document.getElementById('cache-stats-table').querySelector('tbody'),
+    
+    // Modal triggers
+    aboutLink: document.getElementById('about-link'),
+    apiDocsLink: document.getElementById('api-docs-link'),
+    
+    // Search & Sort elements
+    sortButtons: document.querySelectorAll('.sort-btn'),
+    searchInputs: document.querySelectorAll('.search-input')
+  };
+  
+  /**
+   * APPLICATION INITIALIZATION
+   * 
+   * Entry point for the application
+   * Sets up event handlers, starts data fetching, and initializes the UI
+   */
+  function initialize() {
+    setupEventListeners();
+    startPeriodicDataFetching();
+    fetchInitialData();
+    
+    // Add optional UI enhancements
+    addAnimationToggle();
+  }
+  
+  /**
+   * ANIMATION TOGGLE
+   * 
+   * Adds a toggle switch to the debug panel that enables/disables animations
+   * This is useful for reducing CPU usage on lower-end devices or when
+   * frequent updates are needed without the visual overhead
+   */
+  function addAnimationToggle() {
+    const cacheHeader = document.querySelector('.card-header:has(#refresh-cache-stats)');
+    if (cacheHeader) {
+      const animToggle = document.createElement('div');
+      animToggle.className = 'form-check form-switch ms-3 d-inline-block';
+      animToggle.innerHTML = `
+        <input class="form-check-input" type="checkbox" id="animation-toggle" checked>
+        <label class="form-check-label text-white small" for="animation-toggle">Animations</label>
+      `;
+      cacheHeader.appendChild(animToggle);
+      
+      document.getElementById('animation-toggle').addEventListener('change', (e) => {
+        state.animationsEnabled = e.target.checked;
+      });
+    }
+  }
+  
+  /**
+   * EVENT HANDLERS
+   * 
+   * Sets up all event listeners for user interaction
+   * This includes button clicks, tab changes, search inputs, and more
+   */
+  function setupEventListeners() {
+    // Period selector buttons
+    elements.periodSelectors.forEach(selector => {
+      selector.addEventListener('click', () => {
+        const period = selector.getAttribute('data-period');
+        if (period !== state.currentPeriod) {
+          setPeriod(period);
+          fetchInitialData(); // Fetch new data when period changes
+        }
+      });
+    });
+    
+    // Manual refresh button
+    elements.refreshBtn.addEventListener('click', () => {
+      fetchInitialData();
+    });
+    
+    // Cache statistics refresh button
+    elements.refreshCacheBtn.addEventListener('click', () => {
+      fetchCacheStats();
+    });
+    
+    // Modal triggers
+    elements.aboutLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      const aboutModal = new bootstrap.Modal(document.getElementById('about-modal'));
+      aboutModal.show();
+    });
+    
+    elements.apiDocsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      const apiDocsModal = new bootstrap.Modal(document.getElementById('api-docs-modal'));
+      apiDocsModal.show();
+    });
+    
+    // Sort buttons in each tab
+    elements.sortButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        // Toggle sort direction between ascending and descending
+        state.sortDirection = state.sortDirection === 'desc' ? 'asc' : 'desc';
+        
+        // Update button icon to reflect current sort direction
+        const icon = button.querySelector('i');
+        icon.className = state.sortDirection === 'desc' 
+          ? 'fas fa-sort-amount-down' 
+          : 'fas fa-sort-amount-up';
+        
+        // Re-render the cards with the new sort order
+        renderAllCards();
+      });
+    });
+    
+    // Apply debounced search to improve performance
+    // This ensures the search only runs after the user stops typing
+    elements.searchInputs.forEach(input => {
+      input.addEventListener('input', debounce(() => {
+        renderAllCards();
+      }, 300)); // 300ms delay
+    });
+  }
+  
+  /**
+   * PERIODIC DATA FETCHING
+   * 
+   * Sets up automatic data refresh at regular intervals
+   * This keeps the dashboard updated with the latest blockchain activity
+   */
+  function startPeriodicDataFetching() {
+    // Clear any existing timers to prevent multiple concurrent timers
+    if (state.refreshTimer) {
+      clearInterval(state.refreshTimer);
+    }
+    
+    // Set up new timer that refreshes data periodically
+    state.refreshTimer = setInterval(() => {
+      console.log('Auto-refreshing data...');
+      fetchAllData(false); // Don't show loading overlay on auto-refresh
+    }, REFRESH_INTERVAL);
+    
+    console.log(`Periodic data fetching started (every ${REFRESH_INTERVAL/1000} seconds)`);
+  }
+  
+  /**
+   * INITIAL DATA FETCHING
+   * 
+   * Fetches initial data when the app loads or when manually refreshed
+   * Shows a loading overlay to indicate activity to the user
+   */
+  function fetchInitialData() {
+    fetchAllData(true); // Show loading overlay on manual/initial fetch
+  }
+  
+  /**
+   * COMPREHENSIVE DATA FETCHING
+   * 
+   * Fetches all required data from multiple API endpoints
+   * This is the main data retrieval function that powers the dashboard
+   * 
+   * @param {boolean} showLoading - Whether to show the loading overlay during fetch
+   */
+  function fetchAllData(showLoading = true) {
+    // Show loading UI if requested
+    if (showLoading) {
+      showLoadingOverlay();
+    }
+    
+    // Update status indicator
+    updateStatusBadge('loading');
+    
+    // Store current data for comparison to identify new activities
+    state.previousData = {
+      statsData: state.statsData,
+      tradesData: state.tradesData,
+      giftzData: state.giftzData,
+      craftsData: state.craftsData,
+      morphsData: state.morphsData,
+      burnsData: state.burnsData,
+      usersData: state.usersData
+    };
+    
+    // Fetch data from all API endpoints in parallel
+    Promise.all([
+      fetchStats(),        // Overall statistics
+      fetchActivity(),     // Time series data for charts
+      fetchTrades(),       // Ardor and Polygon trades
+      fetchGiftzSales(),   // Giftz marketplace sales
+      fetchCrafts(),       // Card crafting events
+      fetchMorphs(),       // Card morphing events 
+      fetchBurns(),        // Card burning events
+      fetchUsers(),        // User activity data
+      fetchCacheStats()    // Cache status (for debugging)
+    ])
+    .then(results => {
+      // Store results in application state
+      state.statsData = results[0];
+      state.activityData = results[1];
+      state.tradesData = results[2];
+      state.giftzData = results[3];
+      state.craftsData = results[4];
+      state.morphsData = results[5];
+      state.burnsData = results[6];
+      state.usersData = results[7];
+      state.cacheData = results[8];
+      
+      // Update UI with new data
+      updateStatsWithAnimation();      // Update summary statistics
+      renderCharts();                  // Update visualizations
+      renderAllCardsWithAnimation();   // Update transaction cards
+      renderCacheTable();              // Update cache stats table
+      updateLastUpdatedTime();         // Update last refresh timestamp
+      
+      // Check for and highlight new activity
+      checkForNewActivity();
+      
+      // Update status indicator to show success
+      updateStatusBadge('success');
+      
+      // Hide loading UI if it was shown
+      if (showLoading) {
+        hideLoadingOverlay();
+      }
+    })
+    .catch(error => {
+      // Handle errors
+      console.error('Error fetching data:', error);
+      updateStatusBadge('error');
+      
+      // Hide loading UI if it was shown
+      if (showLoading) {
+        hideLoadingOverlay();
+      }
+      
+      // Show error notification to user
+      showNotification('Error', 'Failed to fetch data from the server. Please try again later.', 'error');
+    });
+  }
+  
+  /**
+   * API DATA FETCHING FUNCTIONS
+   * 
+   * Each function below fetches data from a specific API endpoint
+   * All return Promises that resolve to the processed JSON data
+   * Error handling is consistent across all fetch operations
+   */
+  
+  /**
+   * Fetch overall statistics for the current time period
+   * @returns {Promise} Promise resolving to statistics object
+   */
+  function fetchStats() {
+    return fetch(`${API_BASE_URL}/stats?period=${state.currentPeriod}`)
+      .then(handleResponse)
+      .catch(error => {
+        console.error('Error fetching stats:', error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Fetch time series data for activity charts
+   * @returns {Promise} Promise resolving to chart data object
+   */
+  function fetchActivity() {
+    return fetch(`${API_BASE_URL}/activity?period=${state.currentPeriod}`)
+      .then(handleResponse)
+      .catch(error => {
+        console.error('Error fetching activity data:', error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Fetch trades data
+   * @returns {Promise} Promise resolving to trades data
+   */
+  function fetchTrades() {
+    return fetch(`${API_BASE_URL}/trades?period=${state.currentPeriod}`)
+      .then(handleResponse)
+      .catch(error => {
+        console.error('Error fetching trades:', error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Fetch Giftz sales data
+   * @returns {Promise} Promise resolving to giftz data
+   */
+  function fetchGiftzSales() {
+    return fetch(`${API_BASE_URL}/giftz?period=${state.currentPeriod}`)
+      .then(handleResponse)
+      .catch(error => {
+        console.error('Error fetching giftz sales:', error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Fetch crafting data
+   * @returns {Promise} Promise resolving to crafts data
+   */
+  function fetchCrafts() {
+    return fetch(`${API_BASE_URL}/crafts?period=${state.currentPeriod}`)
+      .then(handleResponse)
+      .catch(error => {
+        console.error('Error fetching crafts:', error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Fetch morphing data
+   * @returns {Promise} Promise resolving to morphs data
+   */
+  function fetchMorphs() {
+    return fetch(`${API_BASE_URL}/morphs?period=${state.currentPeriod}`)
+      .then(handleResponse)
+      .catch(error => {
+        console.error('Error fetching morphs:', error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Fetch burning data
+   * @returns {Promise} Promise resolving to burns data
+   */
+  function fetchBurns() {
+    return fetch(`${API_BASE_URL}/burns?period=${state.currentPeriod}`)
+      .then(handleResponse)
+      .catch(error => {
+        console.error('Error fetching burns:', error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Fetch active users data
+   * @returns {Promise} Promise resolving to users data
+   */
+  function fetchUsers() {
+    return fetch(`${API_BASE_URL}/users?period=${state.currentPeriod}`)
+      .then(handleResponse)
+      .catch(error => {
+        console.error('Error fetching users:', error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Fetch cache statistics
+   * @returns {Promise} Promise resolving to cache stats data
+   */
+  function fetchCacheStats() {
+    return fetch(`${API_BASE_URL}/cache/status`)
+      .then(handleResponse)
+      .then(data => {
+        state.cacheData = data;
+        renderCacheTable();
+        return data;
+      })
+      .catch(error => {
+        console.error('Error fetching cache stats:', error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Handle API response and check for errors
+   * @param {Response} response - The fetch response object
+   * @returns {Promise} Promise resolving to JSON data
+   * @throws {Error} If the response status is not OK
+   */
+  function handleResponse(response) {
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+    return response.json();
+  }
+  
+  /**
+   * UI UPDATE FUNCTIONS
+   * 
+   * These functions handle updating the UI components with new data
+   * They include animations and visual feedback for changes
+   */
+  
+  /**
+   * Update statistics with animations for changed values
+   * Compares previous and current statistics to animate changes
+   * This provides visual feedback when values update
+   */
+  function updateStatsWithAnimation() {
+    const stats = state.statsData || {};
+    const prevStats = state.previousData.statsData || {};
+    
+    // Update each stat with animation if value changed
+    animateCounterIfChanged(elements.totalTrades, prevStats.total_trades, stats.total_trades || 0);
+    animateCounterIfChanged(elements.activeUsers, prevStats.active_users, stats.active_users || 0);
+    animateCounterIfChanged(elements.cardCrafts, prevStats.card_crafts, stats.card_crafts || 0);
+    animateCounterIfChanged(elements.cardBurns, prevStats.card_burns, stats.card_burns || 0);
+    animateCounterIfChanged(elements.giftzSales, prevStats.giftz_sales, stats.giftz_sales || 0);
+    animateCounterIfChanged(elements.cardMorphs, prevStats.card_morphs, stats.card_morphs || 0);
+  }
+  
+  /**
+   * Animate a counter when its value changes
+   * This provides a smooth transition between old and new values
+   * 
+   * @param {HTMLElement} element - DOM element to update
+   * @param {number} oldValue - Previous value
+   * @param {number} newValue - New value to animate to
+   */
+  function animateCounterIfChanged(element, oldValue, newValue) {
+    if (!element || oldValue === newValue || !state.animationsEnabled) {
+      // Just set the value directly if no change or animations disabled
+      element.textContent = formatNumber(newValue);
+      return;
+    }
+    
+    // Parse values to ensure they're numbers
+    oldValue = parseInt(oldValue) || 0;
+    newValue = parseInt(newValue) || 0;
+    
+    // Highlight element to show change
+    const highlightClass = newValue > oldValue ? 'highlight-increase' : 'highlight-decrease';
+    element.classList.add(highlightClass);
+    
+    // Animate the counter
+    const duration = 1000; // 1 second
+    const startTime = performance.now();
+    const updateCounter = (currentTime) => {
+      const elapsedTime = currentTime - startTime;
+      const progress = Math.min(elapsedTime / duration, 1);
+      
+      // Easing function for smoother animation
+      const easeOutQuad = t => t * (2 - t);
+      const easedProgress = easeOutQuad(progress);
+      
+      const currentValue = Math.round(oldValue + (newValue - oldValue) * easedProgress);
+      element.textContent = formatNumber(currentValue);
+      
+      if (progress < 1) {
+        requestAnimationFrame(updateCounter);
+      } else {
+        // Animation complete, remove highlight after a delay
+        setTimeout(() => {
+          element.classList.remove(highlightClass);
+        }, 500);
+      }
+    };
+    
+    requestAnimationFrame(updateCounter);
+  }
+  
+  /**
+   * Render or update activity charts
+   * Uses Chart.js to visualize time series data and network distribution
+   * Optimized to update existing charts rather than recreating them
+   */
+  function renderCharts() {
+    const activityData = state.activityData || {};
+    
+    // Only recreate charts if they don't exist
+    if (!state.activityChart) {
+      // Initialize activity chart
+      state.activityChart = new Chart(elements.activityChart, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: []
+        },
+        options: {
+          responsive: true,
+          animation: { duration: state.animationsEnabled ? 800 : 0 },
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            x: {
+              ticks: {
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 10
+              }
+            },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+    
+    // Update chart data instead of recreating the chart
+    state.activityChart.data.labels = activityData.dates || [];
+    state.activityChart.data.datasets = [
+      {
+        label: 'Trades',
+        data: activityData.trades || [],
+        borderColor: '#3949ab',
+        backgroundColor: 'rgba(57, 73, 171, 0.1)',
+        tension: 0.4,
+        fill: true
+      },
+      // Other datasets...
+    ];
+    
+    state.activityChart.update('normal');
+    
+    // Similar approach for network chart
+  }
+  
+  /**
+   * Render all card sections with animation for new items
+   * Identifies and highlights new transactions since the last update
+   */
+  function renderAllCardsWithAnimation() {
+    const tradesData = state.tradesData || {};
+    const giftzData = state.giftzData || {};
+    
+    // Previous data for comparison
+    const prevData = state.previousData || {};
+    
+    // Get arrays of new items
+    const newArdorTrades = prevData.tradesData?.ardor_trades ? 
+      getNewItems(prevData.tradesData.ardor_trades, tradesData.ardor_trades || []) : [];
+      
+    const newPolygonTrades = prevData.tradesData?.polygon_trades ? 
+      getNewItems(prevData.tradesData.polygon_trades, tradesData.polygon_trades || []) : [];
+      
+    const newGiftzSales = prevData.giftzData?.sales ? 
+      getNewItems(prevData.giftzData.sales, giftzData.sales || []) : [];
+      
+    const newCrafts = prevData.craftsData?.crafts ? 
+      getNewItems(prevData.craftsData.crafts, state.craftsData?.crafts || []) : [];
+      
+    const newMorphs = prevData.morphsData?.morphs ? 
+      getNewItems(prevData.morphsData.morphs, state.morphsData?.morphs || []) : [];
+      
+    const newBurns = prevData.burnsData?.burns ? 
+      getNewItems(prevData.burnsData.burns, state.burnsData?.burns || []) : [];
+      
+    const newUsers = prevData.usersData?.users ? 
+      getNewItems(prevData.usersData.users, state.usersData?.users || []) : [];
+    
+    // Render cards with animation for new items
+    renderTradeCards(
+      tradesData.ardor_trades || [], 
+      elements.ardorTradesCards, 
+      'trade-card-template', 
+      newArdorTrades.map(item => item.id)
+    );
+    
+    renderTradeCards(
+      tradesData.polygon_trades || [], 
+      elements.polygonTradesCards, 
+      'trade-card-template', 
+      newPolygonTrades.map(item => item.id)
+    );
+    
+    renderTransactionCards(
+      giftzData.sales || [], 
+      elements.giftzCards, 
+      'giftz-card-template', 
+      newGiftzSales.map(item => item.id)
+    );
+    
+    renderTransactionCards(
+      state.craftsData?.crafts || [], 
+      elements.craftsCards, 
+      'craft-card-template', 
+      newCrafts.map(item => item.id)
+    );
+    
+    renderTransactionCards(
+      state.morphsData?.morphs || [], 
+      elements.morphsCards, 
+      'morph-card-template', 
+      newMorphs.map(item => item.id)
+    );
+    
+    renderTransactionCards(
+      state.burnsData?.burns || [], 
+      elements.burnsCards, 
+      'burn-card-template', 
+      newBurns.map(item => item.id)
+    );
+    
+    renderUserCards(
+      state.usersData?.users || [], 
+      elements.usersCards, 
+      newUsers.map(item => item.id)
+    );
+  }
+
+  /**
+   * Render trade cards with animation for new items
+   * Used for both Ardor and Polygon trade cards
+   * 
+   * @param {Array} trades - Array of trade objects
+   * @param {HTMLElement} container - Container to render into
+   * @param {string} templateId - ID of template to use
+   * @param {Array} newItemIds - IDs of new items to animate
+   */
+  function renderTradeCards(trades, container, templateId, newItemIds = []) {
+    if (!container) return;
+    
+    // Get search term if any
+    const searchInput = container.closest('.tab-pane').querySelector('.search-input');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    // Filter and sort trades
+    let filteredTrades = trades;
+    
+    if (searchTerm) {
+      filteredTrades = trades.filter(trade => {
+        return (trade.card_name && trade.card_name.toLowerCase().includes(searchTerm)) ||
+               (trade.buyer && trade.buyer.toLowerCase().includes(searchTerm)) ||
+               (trade.seller && trade.seller.toLowerCase().includes(searchTerm));
+      });
+    }
+    
+    // Sort trades by timestamp
+    filteredTrades = [...filteredTrades].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      
+      return state.sortDirection === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+    
+    // Clear container
+    container.innerHTML = '';
+    
+    // Show message if no trades
+    if (filteredTrades.length === 0) {
+      container.innerHTML = `<div class="text-center p-4 text-muted">No trades found${searchTerm ? ' matching your search' : ''}</div>`;
+      return;
+    }
+    
+    // Get template
+    const template = document.getElementById(templateId);
+    if (!template) return;
+    
+    // Create and append trade cards
+    filteredTrades.forEach(trade => {
+      const card = document.importNode(template.content, true);
+      
+      // Set card data
+      card.querySelector('.card-name').textContent = trade.card_name || 'Unknown Card';
+      card.querySelector('.buyer-name').textContent = formatAddress(trade.buyer);
+      card.querySelector('.seller-name').textContent = formatAddress(trade.seller);
+      card.querySelector('.price').textContent = formatPrice(trade.price, trade.currency);
+      card.querySelector('.transaction-time').textContent = formatDateTime(trade.timestamp);
+      
+      // Add animation class for new items
+      const cardElement = card.querySelector('.transaction-card');
+      if (state.animationsEnabled && newItemIds.includes(trade.id)) {
+        cardElement.classList.add('new-item-animation');
+      }
+      
+      // Append card to container
+      container.appendChild(card);
+    });
+  }
+
+  /**
+   * Render transaction cards (giftz, crafts, morphs, burns)
+   * Generic rendering function for different transaction types
+   * 
+   * @param {Array} transactions - Array of transaction objects
+   * @param {HTMLElement} container - Container to render into
+   * @param {string} templateId - ID of template to use
+   * @param {Array} newItemIds - IDs of new items to animate
+   */
+  function renderTransactionCards(transactions, container, templateId, newItemIds = []) {
+    if (!container) return;
+    
+    // Get search term if any
+    const searchInput = container.closest('.tab-pane').querySelector('.search-input');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    // Filter transactions based on template type
+    let filteredTransactions = transactions;
+    
+    if (searchTerm) {
+      filteredTransactions = transactions.filter(tx => {
+        // Generic search across all props
+        return Object.values(tx).some(val => 
+          typeof val === 'string' && val.toLowerCase().includes(searchTerm)
+        );
+      });
+    }
+    
+    // Sort transactions by timestamp
+    filteredTransactions = [...filteredTransactions].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      return state.sortDirection === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+    
+    // Clear container
+    container.innerHTML = '';
+    
+    // Show message if no transactions
+    if (filteredTransactions.length === 0) {
+      container.innerHTML = `<div class="text-center p-4 text-muted">No records found${searchTerm ? ' matching your search' : ''}</div>`;
+      return;
+    }
+    
+    // Get template
+    const template = document.getElementById(templateId);
+    if (!template) return;
+    
+    // Create and append transaction cards
+    filteredTransactions.forEach(tx => {
+      const card = document.importNode(template.content, true);
+      
+      // Set common data
+      card.querySelector('.transaction-time').textContent = formatDateTime(tx.timestamp);
+      
+      // Set template-specific data
+      switch (templateId) {
+        case 'giftz-card-template':
+          card.querySelector('.card-name').textContent = tx.item_name || 'Unknown Item';
+          card.querySelector('.buyer-name').textContent = formatAddress(tx.buyer);
+          card.querySelector('.price').textContent = formatPrice(tx.price, tx.currency);
+          break;
+          
+        case 'craft-card-template':
+          card.querySelector('.card-name').textContent = tx.result_card || 'Unknown Card';
+          card.querySelector('.crafter-name').textContent = formatAddress(tx.crafter);
+          card.querySelector('.craft-result').textContent = tx.result_card || 'New Card';
+          break;
+          
+        case 'morph-card-template':
+          card.querySelector('.card-name').textContent = tx.to_card || 'Morphed Card';
+          card.querySelector('.morpher-name').textContent = formatAddress(tx.morpher);
+          card.querySelector('.from-card').textContent = tx.from_card || 'Original Card';
+          card.querySelector('.to-card').textContent = tx.to_card || 'New Card';
+          break;
+          
+        case 'burn-card-template':
+          card.querySelector('.card-name').textContent = tx.card_name || 'Burned Card';
+          card.querySelector('.burner-name').textContent = formatAddress(tx.burner);
+          card.querySelector('.amount').textContent = tx.amount || '1';
+          break;
+      }
+      
+      // Add animation class for new items
+      const cardElement = card.querySelector('.transaction-card');
+      if (state.animationsEnabled && newItemIds.includes(tx.id)) {
+        cardElement.classList.add('new-item-animation');
+      }
+      
+      // Append card to container
+      container.appendChild(card);
+    });
+  }
+
+  /**
+   * Render user activity cards
+   * Shows users and their activity statistics
+   * 
+   * @param {Array} users - Array of user objects
+   * @param {HTMLElement} container - Container to render into
+   * @param {Array} newItemIds - IDs of new users to animate
+   */
+  function renderUserCards(users, container, newItemIds = []) {
+    if (!container) return;
+    
+    // Get search term if any
+    const searchInput = container.closest('.tab-pane').querySelector('.search-input');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    // Filter users
+    let filteredUsers = users;
+    
+    if (searchTerm) {
+      filteredUsers = users.filter(user => {
+        return (user.name && user.name.toLowerCase().includes(searchTerm)) ||
+               (user.address && user.address.toLowerCase().includes(searchTerm));
+      });
+    }
+    
+    // Sort users by activity
+    filteredUsers = [...filteredUsers].sort((a, b) => {
+      const activityA = (a.trades_count || 0) + (a.crafts_count || 0) + (a.burns_count || 0);
+      const activityB = (b.trades_count || 0) + (b.crafts_count || 0) + (b.burns_count || 0);
+      
+      return state.sortDirection === 'desc' ? activityB - activityA : activityA - activityB;
+    });
+    
+    // Clear container
+    container.innerHTML = '';
+    
+    // Show message if no users
+    if (filteredUsers.length === 0) {
+      container.innerHTML = `<div class="text-center p-4 text-muted">No users found${searchTerm ? ' matching your search' : ''}</div>`;
+      return;
+    }
+    
+    // Get template
+    const template = document.getElementById('user-card-template');
+    if (!template) return;
+    
+    // Create and append user cards
+    filteredUsers.forEach(user => {
+      const card = document.importNode(template.content, true);
+      
+      // Set card data
+      card.querySelector('.user-name').textContent = user.name || formatAddress(user.address);
+      card.querySelector('.trades-count').textContent = user.trades_count || 0;
+      card.querySelector('.crafts-count').textContent = user.crafts_count || 0;
+      card.querySelector('.burns-count').textContent = user.burns_count || 0;
+      card.querySelector('.user-since').textContent = formatDate(user.first_seen);
+      
+      // Add animation class for new items
+      const cardElement = card.querySelector('.transaction-card');
+      if (state.animationsEnabled && newItemIds.includes(user.id)) {
+        cardElement.classList.add('new-item-animation');
+      }
+      
+      // Append card to container
+      container.appendChild(card);
+    });
+  }
+  
+  /**
+   * Render cache statistics table
+   * Shows debugging information about the backend cache
+   */
+  function renderCacheTable() {
+    const cacheFiles = state.cacheData?.cache_files || [];
+    
+    if (cacheFiles.length === 0) {
+      elements.cacheStatsTable.innerHTML = `<tr><td colspan="5" class="text-center">No cache files found</td></tr>`;
+      return;
+    }
+    
+    let tableHtml = '';
+    cacheFiles.forEach(file => {
+      tableHtml += `
+        <tr>
+          <td>${file.name}</td>
+          <td>${formatNumber(file.records)}</td>
+          <td>${formatFileSize(file.size)}</td>
+          <td>${formatDateRange(file.date_range)}</td>
+          <td>${formatDateTime(file.last_updated)}</td>
+        </tr>
+      `;
+    });
+    
+    elements.cacheStatsTable.innerHTML = tableHtml;
+  }
+  
+  /**
+   * UTILITY FUNCTIONS
+   * 
+   * Helper functions for common tasks throughout the application
+   */
+  
+  /**
+   * Set active period and update UI
+   * @param {string} period - Period to set active (24h, 7d, 30d, all)
+   */
+  function setPeriod(period) {
+    state.currentPeriod = period;
+    
+    // Update UI
+    elements.periodSelectors.forEach(selector => {
+      const selectorPeriod = selector.getAttribute('data-period');
+      if (selectorPeriod === period) {
+        selector.classList.remove('btn-outline-primary');
+        selector.classList.add('btn-primary', 'active');
+      } else {
+        selector.classList.remove('btn-primary', 'active');
+        selector.classList.add('btn-outline-primary');
+      }
+    });
+  }
+  
+  /**
+   * Update the status badge to indicate application state
+   * @param {string} status - Status to show (loading, success, error)
+   */
+  function updateStatusBadge(status) {
+    switch (status) {
+      case 'loading':
+        elements.statusBadge.className = 'badge rounded-pill bg-warning me-2';
+        elements.statusBadge.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i> Loading';
+        break;
+      
+      case 'success':
+        elements.statusBadge.className = 'badge rounded-pill bg-success me-2';
+        elements.statusBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i> Updated';
+        
+        // Reset to "Live" after 3 seconds
+        setTimeout(() => {
+          elements.statusBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i> Live';
+        }, 3000);
+        break;
+      
+      case 'error':
+        elements.statusBadge.className = 'badge rounded-pill bg-danger me-2';
+        elements.statusBadge.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Error';
+        break;
+    }
+  }
+  
+  /**
+   * Update the last updated timestamp
+   * Displays when data was last refreshed
+   */
+  function updateLastUpdatedTime() {
+    state.lastUpdate = new Date();
+    elements.lastUpdateSpan.textContent = formatDateTime(state.lastUpdate);
+  }
+  
+  /**
+   * Show loading overlay during data fetching
+   */
+  function showLoadingOverlay() {
+    elements.loadingOverlay.classList.add('active');
+  }
+  
+  /**
+   * Hide loading overlay when data fetching completes
+   */
+  function hideLoadingOverlay() {
+    elements.loadingOverlay.classList.remove('active');
+  }
+  
+  /**
+   * Format wallet address for display
+   * Abbreviates long addresses to improve readability
+   * 
+   * @param {string} address - Blockchain address
+   * @returns {string} Formatted address (e.g., "0x1234...5678")
+   */
+  function formatAddress(address) {
+    if (!address) return 'Unknown';
+    if (address.length <= 10) return address;
+    return address.substring(0, 6) + '...' + address.substring(address.length - 4);
+  }
+  
+  /**
+   * Format cryptocurrency price for display
+   * 
+   * @param {number|string} price - Price value
+   * @param {string} currency - Currency code
+   * @returns {string} Formatted price with currency
+   */
+  function formatPrice(price, currency) {
+    if (!price) return '0';
+    return `${parseFloat(price).toLocaleString()} ${currency || ''}`;
+  }
+  
+  /**
+   * Format number with thousands separators
+   * 
+   * @param {number} num - Number to format
+   * @returns {string} Formatted number
+   */
+  function formatNumber(num) {
+    return num.toLocaleString();
+  }
+  
+  /**
+   * Format date for display
+   * 
+   * @param {string} dateStr - ISO date string
+   * @returns {string} Formatted date
+   */
+  function formatDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString();
+  }
+  
+  /**
+   * Format date and time for display
+   * 
+   * @param {string} dateStr - ISO date string
+   * @returns {string} Formatted date and time
+   */
+  function formatDateTime(dateStr) {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    return date.toLocaleString();
+  }
+  
+  /**
+   * Format date range for display
+   * 
+   * @param {Object} range - Object with start and end dates
+   * @returns {string} Formatted date range
+   */
+  function formatDateRange(range) {
+    if (!range || !range.start || !range.end) return 'N/A';
+    return `${formatDate(range.start)} - ${formatDate(range.end)}`;
+  }
+  
+  /**
+   * Format file size in human-readable form
+   * Converts bytes to appropriate unit (KB, MB, etc.)
+   * 
+   * @param {number} bytes - Size in bytes
+   * @returns {string} Formatted file size
+   */
+  function formatFileSize(bytes) {
+    if (!bytes) return '0 B';
+    
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0;
+    while (bytes >= 1024 && i < units.length - 1) {
+      bytes /= 1024;
+      i++;
+    }
+    
+    return `${bytes.toFixed(1)} ${units[i]}`;
+  }
+  
+  /**
+   * NEW ACTIVITY DETECTION
+   * 
+   * Functions for detecting and highlighting new blockchain activity
+   */
+  
+  /**
+   * Check for new activity since last update
+   * Compares previous data with current data to identify new items
+   * Shows notifications and tab badges for new activity
+   */
+  function checkForNewActivity() {
+    // Check if we have previous data to compare with
+    if (!state.previousData.tradesData) return;
+    
+    // Check for new trades
+    const newArdorTrades = getNewItems(
+      state.previousData.tradesData?.ardor_trades || [], 
+      state.tradesData?.ardor_trades || []
+    );
+    
+    const newPolygonTrades = getNewItems(
+      state.previousData.tradesData?.polygon_trades || [], 
+      state.tradesData?.polygon_trades || []
+    );
+    
+    const newGiftzSales = getNewItems(
+      state.previousData.giftzData?.sales || [],
+      state.giftzData?.sales || []
+    );
+    
+    const newCrafts = getNewItems(
+      state.previousData.craftsData?.crafts || [],
+      state.craftsData?.crafts || []
+    );
+    
+    const newMorphs = getNewItems(
+      state.previousData.morphsData?.morphs || [],
+      state.morphsData?.morphs || []
+    );
+    
+    const newBurns = getNewItems(
+      state.previousData.burnsData?.burns || [],
+      state.burnsData?.burns || []
+    );
+    
+    // Count total new activities
+    const totalNewActivities = 
+      newArdorTrades.length +
+      newPolygonTrades.length +
+      newGiftzSales.length +
+      newCrafts.length +
+      newMorphs.length +
+      newBurns.length;
+    
+    // Show notification if there is new activity
+    if (totalNewActivities > 0) {
+      showNotification(
+        'New Activity Detected', 
+        `Found ${totalNewActivities} new activities since last update.`, 
+        'info'
+      );
+    }
+    
+    // Highlight tabs with new activity
+    highlightTabWithNewActivity('ardor-trades-tab', newArdorTrades.length);
+    highlightTabWithNewActivity('polygon-trades-tab', newPolygonTrades.length);
+    highlightTabWithNewActivity('giftz-tab', newGiftzSales.length);
+    highlightTabWithNewActivity('crafts-tab', newCrafts.length);
+    highlightTabWithNewActivity('morphs-tab', newMorphs.length);
+    highlightTabWithNewActivity('burns-tab', newBurns.length);
+  }
+  
+  /**
+   * Identify new items by comparing previous and current data
+   * 
+   * @param {Array} prevItems - Previous items array
+   * @param {Array} currentItems - Current items array
+   * @returns {Array} New items that weren't in the previous data
+   */
+  function getNewItems(prevItems, currentItems) {
+    if (!prevItems.length || !currentItems.length) return [];
+    
+    // Get IDs of previous items
+    const prevIds = new Set(prevItems.map(item => item.id));
+    
+    // Filter current items to find ones not in previous data
+    return currentItems.filter(item => !prevIds.has(item.id));
+  }
+  
+  /**
+   * Highlight tab with notification badge for new activity
+   * Adds a count badge to tabs with new content
+   * 
+   * @param {string} tabId - ID of tab to highlight
+   * @param {number} count - Number of new items
+   */
+  function highlightTabWithNewActivity(tabId, count) {
+    if (!count) return;
+    
+    const tab = document.getElementById(tabId);
+    if (!tab) return;
+    
+    // Create or update notification badge
+    let badge = tab.querySelector('.notification-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'notification-badge badge rounded-pill bg-danger ms-2 animate__animated animate__fadeIn';
+      tab.appendChild(badge);
+    }
+    
+    badge.textContent = count;
+    badge.classList.add('pulse-animation');
+    
+    // Remove pulse animation after a while
+    setTimeout(() => {
+      badge.classList.remove('pulse-animation');
+    }, 3000);
+    
+    // Remove badge when tab is clicked
+    tab.addEventListener('click', function onTabClick() {
+      if (badge) {
+        badge.remove();
+      }
+      tab.removeEventListener('click', onTabClick);
+    });
+  }
+  
+  /**
+   * NOTIFICATION SYSTEM
+   * 
+   * Functions for displaying user notifications
+   */
+  
+  /**
+   * Show notification with message
+   * Creates a temporary notification that auto-dismisses
+   * 
+   * @param {string} title - Notification title
+   * @param {string} message - Notification message
+   * @param {string} type - Notification type (success, info, warning, error)
+   */
+  function showNotification(title, message, type = 'info') {
+    // Limit number of notifications
+    const MAX_NOTIFICATIONS = 3;
+    const notificationsContainer = document.getElementById('notifications-container') || 
+      (() => {
+        const container = document.createElement('div');
+        container.id = 'notifications-container';
+        document.body.appendChild(container);
+        return container;
+      })();
+      
+    // Remove oldest notification if at limit
+    const existingNotifications = notificationsContainer.querySelectorAll('.notification');
+    if (existingNotifications.length >= MAX_NOTIFICATIONS) {
+      const oldest = existingNotifications[0];
+      oldest.classList.replace('animate__fadeInRight', 'animate__fadeOutRight');
+      setTimeout(() => oldest.remove(), 300);
+    }
+    
+    // Create notification with more efficient DOM operations
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type} animate__animated animate__fadeInRight`;
+    
+    notification.innerHTML = `
+      <div class="notification-header">
+        <h6 class="m-0">${title}</h6>
+        <button type="button" class="btn-close btn-sm"></button>
+      </div>
+      <div class="notification-body">
+        ${message}
+      </div>
+    `;
+    
+    // Use event delegation for close button
+    notification.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-close')) {
+        notification.classList.replace('animate__fadeInRight', 'animate__fadeOutRight');
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, { once: true });
+    
+    notificationsContainer.appendChild(notification);
+    
+    // Use a WeakTimeout to avoid memory leaks if notification is removed
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.classList.replace('animate__fadeInRight', 'animate__fadeOutRight');
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, 5000);
+  }
+
+  /**
+   * Debounce function to limit how often a function runs
+   * Used to improve performance for expensive operations
+   * 
+   * @param {Function} func - Function to debounce
+   * @param {number} wait - Wait time in milliseconds
+   * @returns {Function} Debounced function
+   */
+  function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+  
+  // Initialize the application when the document is ready
+  initialize();
+});
