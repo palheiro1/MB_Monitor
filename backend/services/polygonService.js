@@ -3,7 +3,10 @@
  * Handles data fetching and processing for Polygon blockchain
  */
 const axios = require('axios');
-const cache = require('../cache');
+const { getTrades } = require('./polygon/trades');
+const { getActiveUsers } = require('./polygon/users');
+const { getTrackedTokens } = require('./polygon/tokens');
+const { readJSON, writeJSON } = require('../utils/jsonStorage');
 
 // Configuration - in a real app, consider moving to environment variables
 const POLYGON_API_URL = 'https://api.polygonscan.com/api';
@@ -20,14 +23,24 @@ const MB_CONTRACT_ADDRESS = '0xcf55f528492768330c0750a6527c1dfb50e2a7c3';
  */
 async function getTrades() {
   try {
-    // In a real implementation, this would make an actual API call to Polygon
-    // For example, querying transfer events from a specific NFT contract
+    console.log('Fetching Polygon trades...');
+    
+    // Check JSON file first
+    const cachedData = readJSON('polygon_trades');
+    if (cachedData) return cachedData;
+    
     const response = await axios.get(`${POLYGON_API_URL}?module=account&action=txlist&address=0xYourContractAddress&startblock=0&endblock=99999999&sort=desc`);
-    return {
+    console.log('Fetched Polygon trades:', response.data);
+    const result = {
       trades: response.data.result || [],
       count: response.data.result ? response.data.result.length : 0,
       timestamp: new Date().toISOString()
     };
+
+    // Save to JSON file
+    writeJSON('polygon_trades', result);
+    
+    return result;
   } catch (error) {
     console.error('Error fetching Polygon trades:', error.message);
     throw new Error(`Failed to fetch Polygon trades: ${error.message}`);
@@ -40,10 +53,10 @@ async function getTrades() {
  */
 async function getTrackedTokens() {
   try {
-    // Check cache first
-    const cacheKey = 'polygon_tracked_tokens';
-    const cachedData = cache.get(cacheKey);
+    console.log('Fetching tracked Polygon tokens...');
     
+    // Check JSON file first
+    const cachedData = readJSON('polygon_tracked_tokens');
     if (cachedData) return cachedData;
     
     // Initialize the result structure
@@ -56,6 +69,7 @@ async function getTrackedTokens() {
 
     try {
       // Get contract metadata first
+      console.log('Fetching contract metadata...');
       const contractMetadataResponse = await axios.get(
         `${ALCHEMY_API_URL}/${ALCHEMY_API_KEY}/getNFTsForCollection`, {
           params: {
@@ -65,12 +79,13 @@ async function getTrackedTokens() {
           }
         }
       );
-
+      console.log('Fetched contract metadata:', contractMetadataResponse.data);
       if (contractMetadataResponse.data && contractMetadataResponse.data.contractMetadata) {
         result.contractInfo = contractMetadataResponse.data.contractMetadata;
       }
 
       // Get NFTs for the collection (paginate if needed)
+      console.log('Fetching NFTs for the collection...');
       const nftResponse = await axios.get(
         `${ALCHEMY_API_URL}/${ALCHEMY_API_KEY}/getNFTsForCollection`, {
           params: {
@@ -80,7 +95,7 @@ async function getTrackedTokens() {
           }
         }
       );
-
+      console.log('Fetched NFTs for the collection:', nftResponse.data);
       if (nftResponse.data && nftResponse.data.nfts) {
         result.tokens = nftResponse.data.nfts;
         
@@ -95,10 +110,10 @@ async function getTrackedTokens() {
       console.error('Error fetching ERC1155 tokens from Alchemy:', error.message);
     }
 
-    // Cache the result
-    cache.set(cacheKey, result, CACHE_TTL);
+    // Save to JSON file
+    writeJSON('polygon_tracked_tokens', result);
     
-    return result;
+    return result.tokens;
   } catch (error) {
     console.error('Error fetching tracked Polygon tokens:', error.message);
     throw new Error(`Failed to fetch tracked Polygon tokens: ${error.message}`);
@@ -111,12 +126,22 @@ async function getTrackedTokens() {
  */
 async function getActiveUsers() {
   try {
+    console.log('Fetching Polygon active users...');
+    
+    // Check JSON file first
+    const cachedData = readJSON('polygon_active_users');
+    if (cachedData) return cachedData;
+    
     // Mock implementation - replace with actual API call
-    // In a real application, you might count unique addresses interacting with your contract
-    return {
+    const result = {
       activeUsers: 453, // Mock data
       timestamp: new Date().toISOString()
     };
+
+    // Save to JSON file
+    writeJSON('polygon_active_users', result);
+    
+    return result;
   } catch (error) {
     console.error('Error fetching Polygon active users:', error.message);
     throw new Error(`Failed to fetch Polygon active users: ${error.message}`);
@@ -129,8 +154,9 @@ async function getActiveUsers() {
  */
 async function getAllData() {
   try {
-    // Check cache first
-    const cachedData = cache.get('polygon_all_data');
+    console.log('Fetching all Polygon data...');
+    // Check JSON file first
+    const cachedData = readJSON('polygon_all_data');
     if (cachedData) return cachedData;
 
     // Fetch all data in parallel
@@ -151,8 +177,9 @@ async function getAllData() {
       timestamp: new Date().toISOString()
     };
 
-    // Update cache
-    cache.set('polygon_all_data', allData, CACHE_TTL);
+    // Save to JSON file
+    writeJSON('polygon_all_data', allData);
+    console.log('Fetched all Polygon data:', allData);
     return allData;
   } catch (error) {
     console.error('Error fetching all Polygon data:', error.message);

@@ -1,45 +1,17 @@
-/**
- * Ardor Blockchain Service
- * Handles data fetching and processing for Ardor blockchain
- */
-const axios = require('axios');
-const { readJSON, writeJSON } = require('../utils/jsonStorage');
+const { getTrades } = require('./trades');
+const { getPrimarySales } = require('./sales');
+const { getCraftings } = require('./crafting');
+const { getMorphings } = require('./morphing');
+const { getCardBurns } = require('./burns');
+const { getActiveUsers } = require('./users');
+const { getTrackedAssets } = require('./assets');
 
-// Configuration - in a real app, consider moving to environment variables
-const ARDOR_API_URL = 'https://ardor.jelurida.com/nxt';
-const CACHE_TTL = 300; // 5 minutes in seconds
-
-// Regular Cards issuer
-const REGULAR_CARDS_ISSUER = 'ARDOR-4V3B-TVQA-Q6LF-GMH3T';
-// Special Cards issuer
-const SPECIAL_CARDS_ISSUER = 'ARDOR-5NCL-DRBZ-XBWF-DDN5T';
-// Specific token IDs to track
-const TOKEN_IDS = [
-  '935701767940516955',
-  '2188455459770682500', 
-  '13993107092599641878',
-  '10230963490193589789'
-];
-
-const { getTrades } = require('./ardor/trades');
-const { getPrimarySales } = require('./ardor/sales');
-const { getCraftings } = require('./ardor/crafting');
-const { getMorphings } = require('./ardor/morphing');
-const { getCardBurns } = require('./ardor/burns');
-const { getActiveUsers } = require('./ardor/users');
-const { getTrackedAssets } = require('./ardor/assets');
-
-/**
- * Get all Ardor data combined
- * @returns {Promise<Object>} Combined Ardor data
- */
 async function getAllData() {
   try {
     console.log('Fetching all Ardor data...');
-    // Check JSON file first
-    const cachedData = readJSON('ardor_all_data');
+    // Check cache first
+    const cachedData = cache.get('ardor_all_data');
     if (cachedData) return cachedData;
-
     // Fetch all data in parallel
     const [trades, primarySales, craftings, morphings, cardBurns, activeUsers, trackedAssets] = 
       await Promise.all([
@@ -51,7 +23,6 @@ async function getAllData() {
         getActiveUsers(),
         getTrackedAssets()
       ]);
-
     const allData = {
       trades: trades.count,
       primarySales: primarySales.count,
@@ -66,9 +37,8 @@ async function getAllData() {
       },
       timestamp: new Date().toISOString()
     };
-
-    // Save to JSON file
-    writeJSON('ardor_all_data', allData);
+    // Update cache
+    cache.set('ardor_all_data', allData, CACHE_TTL);
     console.log('Fetched all Ardor data:', allData);
     return allData;
   } catch (error) {
@@ -77,21 +47,15 @@ async function getAllData() {
   }
 }
 
-/**
- * Initialize service - start periodic cache updates
- */
 function init() {
   // Update cache immediately
   getAllData().catch(err => console.error('Initial Ardor cache update failed:', err.message));
-
   // Set up periodic cache updates
   setInterval(() => {
     getAllData().catch(err => console.error('Periodic Ardor cache update failed:', err.message));
   }, CACHE_TTL * 1000);
-
   console.log('Ardor service initialized');
 }
-
 
 module.exports = {
   getTrades,

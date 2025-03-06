@@ -3,6 +3,7 @@ const router = express.Router();
 const cache = require('../cache');
 const ardorService = require('../services/ardorService');
 const polygonService = require('../services/polygonService');
+const { readJSON, writeJSON } = require('../utils/jsonStorage');
 
 // Import specific route modules
 const ardorRoutes = require('./ardorRoutes');
@@ -20,13 +21,9 @@ router.get('/status', (req, res) => {
 // Combined endpoint to get assets from both chains
 router.get('/tracked-assets', async (req, res) => {
   try {
-    // Check cache first
-    const cacheKey = 'combined_tracked_assets';
-    const cachedData = cache.get(cacheKey);
-    
-    if (cachedData) {
-      return res.json(cachedData);
-    }
+    // Check JSON file first
+    const cachedData = readJSON('combined_tracked_assets');
+    if (cachedData) return res.json(cachedData);
     
     // If not in cache, fetch fresh data from both chains
     const [ardorAssets, polygonTokens] = await Promise.all([
@@ -51,8 +48,8 @@ router.get('/tracked-assets', async (req, res) => {
       timestamp: new Date().toISOString()
     };
     
-    // Cache the result
-    cache.set(cacheKey, combinedData, 300); // Cache for 5 minutes
+    // Save to JSON file
+    writeJSON('combined_tracked_assets', combinedData);
     
     res.json(combinedData);
   } catch (error) {
