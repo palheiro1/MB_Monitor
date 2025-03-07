@@ -17,6 +17,9 @@ import { renderBurnCards, findNewBurns } from './burns.js';
 import { renderUserCards, findNewUsers } from './users.js';
 import { initAssetsComponent } from './assets.js';
 
+// Make sure to export the crafting-related functions
+export { renderCraftCards, findNewCraftings } from './crafts.js';
+
 /**
  * Initialize all transaction components
  */

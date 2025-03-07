@@ -1,4 +1,5 @@
 const { readJSON, writeJSON } = require('../../utils/jsonStorage');
+const { CACHE_TTL } = require('../../config');
 
 async function getActiveUsers() {
   try {

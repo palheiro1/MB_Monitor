@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const ardorService = require('../services/ardorService');
 const cache = require('../cache');
+const { getCraftings } = require('../services/ardorService');
 
 // Get all data (aggregated endpoint)
 router.get('/data', async (req, res) => {
@@ -18,26 +19,22 @@ router.get('/data', async (req, res) => {
   }
 });
 
-// Get trades
+/**
+ * Get trade data
+ */
 router.get('/trades', async (req, res) => {
   try {
-    // Check cache first
-    const cacheKey = 'ardor_trades';
-    const cachedData = cache.get(cacheKey);
+    console.log('API request for Ardor trades');
+    const period = req.query.period || '30d';
+    const forceRefresh = req.query.refresh === 'true';
     
-    if (cachedData) {
-      return res.json(cachedData);
-    }
-    
-    // If not in cache, fetch fresh data
-    const trades = await ardorService.getTrades();
-    
-    // Cache the result
-    cache.set(cacheKey, trades, 300); // Cache for 5 minutes
+    console.log(`Requesting trades with period=${period}, refresh=${forceRefresh}`);
+    const trades = await ardorService.getTrades(period, forceRefresh);
+    console.log(`API returning ${trades.count} trades`);
     
     res.json(trades);
   } catch (error) {
-    console.error('Error in Ardor trades endpoint:', error);
+    console.error('API Error in Ardor trades endpoint:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -80,20 +77,7 @@ router.get('/primary-sales', async (req, res) => {
 // Get craftings
 router.get('/craftings', async (req, res) => {
   try {
-    // Check cache first
-    const cacheKey = 'ardor_craftings';
-    const cachedData = cache.get(cacheKey);
-    
-    if (cachedData) {
-      return res.json(cachedData);
-    }
-    
-    // If not in cache, fetch fresh data
-    const craftings = await ardorService.getCraftings();
-    
-    // Cache the result
-    cache.set(cacheKey, craftings, 300);
-    
+    const craftings = await getCraftings();
     res.json(craftings);
   } catch (error) {
     console.error('Error in Ardor craftings endpoint:', error);
@@ -125,26 +109,34 @@ router.get('/morphings', async (req, res) => {
   }
 });
 
-// Get card burns
-router.get('/card-burns', async (req, res) => {
+/**
+ * Get card burns data
+ */
+router.get('/burns', async (req, res) => {
   try {
-    // Check cache first
-    const cacheKey = 'ardor_card_burns';
-    const cachedData = cache.get(cacheKey);
-    
-    if (cachedData) {
-      return res.json(cachedData);
-    }
-    
-    // If not in cache, fetch fresh data
-    const burns = await ardorService.getCardBurns();
-    
-    // Cache the result
-    cache.set(cacheKey, burns, 300);
-    
+    console.log('API request for Ardor burns');
+    const forceRefresh = req.query.refresh === 'true';
+    const burns = await ardorService.getCardBurns(forceRefresh);
+    console.log(`API returning ${burns.count} burns`);
     res.json(burns);
   } catch (error) {
-    console.error('Error in Ardor card burns endpoint:', error);
+    console.error('API Error in Ardor burns endpoint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Get GEM burns data
+ */
+router.get('/gem-burns', async (req, res) => {
+  try {
+    console.log('API request for Ardor GEM burns');
+    const forceRefresh = req.query.refresh === 'true';
+    const gemBurns = await ardorService.getGEMBurns(forceRefresh);
+    console.log(`API returning ${gemBurns.count} GEM burns`);
+    res.json(gemBurns);
+  } catch (error) {
+    console.error('API Error in Ardor GEM burns endpoint:', error);
     res.status(500).json({ error: error.message });
   }
 });

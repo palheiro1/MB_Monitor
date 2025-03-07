@@ -2,32 +2,37 @@
  * Ardor Blockchain Service
  * Handles data fetching and processing for Ardor blockchain
  */
-const axios = require('axios');
 const { readJSON, writeJSON } = require('../utils/jsonStorage');
-
-// Configuration - in a real app, consider moving to environment variables
-const ARDOR_API_URL = 'https://ardor.jelurida.com/nxt';
-const CACHE_TTL = 300; // 5 minutes in seconds
-
-// Regular Cards issuer
-const REGULAR_CARDS_ISSUER = 'ARDOR-4V3B-TVQA-Q6LF-GMH3T';
-// Special Cards issuer
-const SPECIAL_CARDS_ISSUER = 'ARDOR-5NCL-DRBZ-XBWF-DDN5T';
-// Specific token IDs to track
-const TOKEN_IDS = [
-  '935701767940516955',
-  '2188455459770682500', 
-  '13993107092599641878',
-  '10230963490193589789'
-];
+const { CACHE_TTL } = require('../config');
 
 const { getTrades } = require('./ardor/trades');
 const { getPrimarySales } = require('./ardor/sales');
-const { getCraftings } = require('./ardor/crafting');
+const { getCraftings } = require('../services/ardor/crafting');
 const { getMorphings } = require('./ardor/morphing');
-const { getCardBurns } = require('./ardor/burns');
+const { getCardBurns, getGEMBurns } = require('./ardor/burns');
 const { getActiveUsers } = require('./ardor/users');
 const { getTrackedAssets } = require('./ardor/assets');
+
+// Use the same Ardor epoch constant for consistency
+const ARDOR_EPOCH = 1514764800000; // January 1, 2018 00:00:00 UTC in milliseconds
+
+/**
+ * Convert Ardor timestamp to JavaScript Date
+ * @param {number} timestamp - Ardor timestamp in seconds
+ * @returns {Date} JavaScript Date object
+ */
+function ardorTimestampToDate(timestamp) {
+  return new Date(ARDOR_EPOCH + (timestamp * 1000));
+}
+
+/**
+ * Convert JavaScript Date to Ardor timestamp
+ * @param {Date} date - JavaScript Date object
+ * @returns {number} Ardor timestamp in seconds
+ */
+function dateToArdorTimestamp(date) {
+  return Math.floor((date.getTime() - ARDOR_EPOCH) / 1000);
+}
 
 /**
  * Get all Ardor data combined
@@ -41,13 +46,14 @@ async function getAllData() {
     if (cachedData) return cachedData;
 
     // Fetch all data in parallel
-    const [trades, primarySales, craftings, morphings, cardBurns, activeUsers, trackedAssets] = 
+    const [trades, primarySales, craftings, morphings, cardBurns, gemBurns, activeUsers, trackedAssets] = 
       await Promise.all([
         getTrades(), 
         getPrimarySales(), 
         getCraftings(), 
         getMorphings(), 
         getCardBurns(), 
+        getGEMBurns(),
         getActiveUsers(),
         getTrackedAssets()
       ]);
@@ -58,6 +64,7 @@ async function getAllData() {
       craftings: craftings.count,
       morphings: morphings.count,
       cardBurns: cardBurns.count,
+      gemBurns: gemBurns.count,
       activeUsers: activeUsers.activeUsers,
       trackedAssets: {
         regularCardsCount: trackedAssets.regularCards.length,
@@ -82,16 +89,42 @@ async function getAllData() {
  */
 function init() {
   // Update cache immediately
+  console.log('Initializing Ardor service and populating caches...');
+  
+  // Fetch the master trades cache with all trades first
+  getTrades('all', true)
+    .then(result => console.log(`Initialized main trades cache with ${result.count} trades`))
+    .catch(err => console.error('Failed to initialize trades cache:', err.message));
+    
+  // Then fetch other data
   getAllData().catch(err => console.error('Initial Ardor cache update failed:', err.message));
 
   // Set up periodic cache updates
   setInterval(() => {
     getAllData().catch(err => console.error('Periodic Ardor cache update failed:', err.message));
+    // Refresh the master trades cache periodically (but less frequently)
+    if (Math.random() < 0.2) { // ~20% chance of refreshing trades on each cycle
+      getTrades('all', true)
+        .catch(err => console.error('Periodic trades cache update failed:', err.message));
+    }
   }, CACHE_TTL * 1000);
 
   console.log('Ardor service initialized');
 }
 
+// When processing transaction data from Ardor API
+function processTransactionData(transaction) {
+  // Use correct timestamp conversion
+  const timestamp = transaction.timestamp;
+  const date = ardorTimestampToDate(timestamp);
+  
+  return {
+    // ...existing properties...
+    timestamp: timestamp,
+    timestampISO: date.toISOString(),
+    // ...other properties...
+  };
+}
 
 module.exports = {
   getTrades,
@@ -99,6 +132,7 @@ module.exports = {
   getCraftings,
   getMorphings,
   getCardBurns,
+  getGEMBurns,
   getActiveUsers,
   getTrackedAssets,
   getAllData,

@@ -1,0 +1,15 @@
+{
+  "trades": 2,
+  "primarySales": 0,
+  "craftings": 0,
+  "morphings": 0,
+  "cardBurns": 6,
+  "gemBurns": 6,
+  "activeUsers": 125,
+  "trackedAssets": {
+    "regularCardsCount": 1,
+    "specialCardsCount": 1,
+    "specificTokensCount": 4
+  },
+  "timestamp": "2025-03-07T13:15:59.312Z"
+}

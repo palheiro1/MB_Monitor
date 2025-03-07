@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { readJSON, writeJSON } = require('../../utils/jsonStorage');
-const { ALCHEMY_API_URL, ALCHEMY_API_KEY, MB_CONTRACT_ADDRESS } = require('../config');
+const { ALCHEMY_API_URL, ALCHEMY_API_KEY, MB_CONTRACT_ADDRESS } = require('../../config');
 
 async function getTrackedTokens() {
   try {
@@ -64,7 +64,7 @@ async function getTrackedTokens() {
     // Save to JSON file
     writeJSON('polygon_tracked_tokens', result);
     
-    return result.tokens;
+    return result;
   } catch (error) {
     console.error('Error fetching tracked Polygon tokens:', error.message);
     throw new Error(`Failed to fetch tracked Polygon tokens: ${error.message}`);

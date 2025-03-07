@@ -6,6 +6,7 @@
 
 import { getState } from '../../state/index.js';
 import { formatAddress, formatDateTime } from '../../utils/formatters.js';
+import { ardorTimestampToDate } from '../../utils/ardor-utils.js';
 
 /**
  * Render craft cards
@@ -15,29 +16,33 @@ import { formatAddress, formatDateTime } from '../../utils/formatters.js';
  * @param {Array} newItemIds - IDs of new items to animate
  */
 export function renderCraftCards(crafts, container, newItemIds = []) {
-  if (!container) return;
+  console.log("Rendering craft cards:", crafts?.length || 0);
+  if (!container) {
+    console.error("Craft container element not found");
+    return;
+  }
   
   // Get search term if any
-  const searchInput = container.closest('.tab-pane').querySelector('.search-input');
+  const searchInput = container.closest('.tab-pane')?.querySelector('.search-input');
   const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
   
-  // Filter crafts based on search term
-  let filteredCrafts = crafts;
+  // Filter and sort crafts
+  let filteredCrafts = crafts || [];
   
   if (searchTerm) {
-    filteredCrafts = crafts.filter(craft => {
-      return (craft.result_card && craft.result_card.toLowerCase().includes(searchTerm)) ||
-             (craft.crafter && craft.crafter.toLowerCase().includes(searchTerm)) ||
-             (craft.input_cards && craft.input_cards.some(card => 
-               card.toLowerCase().includes(searchTerm)
-             ));
+    filteredCrafts = filteredCrafts.filter(craft => {
+      return (craft.cardName && craft.cardName.toLowerCase().includes(searchTerm)) ||
+             (craft.assetName && craft.assetName.toLowerCase().includes(searchTerm)) ||
+             (craft.recipient && craft.recipient.toLowerCase().includes(searchTerm));
     });
   }
   
   // Sort crafts by timestamp
   filteredCrafts = [...filteredCrafts].sort((a, b) => {
-    const timeA = new Date(a.timestamp).getTime();
-    const timeB = new Date(b.timestamp).getTime();
+    // Get timestamp in milliseconds for consistent comparison
+    const timeA = getTimestampInMillis(a);
+    const timeB = getTimestampInMillis(b);
+    
     return getState('sortDirection') === 'desc' ? timeB - timeA : timeA - timeB;
   });
   
@@ -56,17 +61,34 @@ export function renderCraftCards(crafts, container, newItemIds = []) {
   
   // Get template
   const template = document.getElementById('craft-card-template');
-  if (!template) return;
+  if (!template) {
+    console.error("Craft card template not found");
+    return;
+  }
   
   // Create and append craft cards
   filteredCrafts.forEach(craft => {
     const card = document.importNode(template.content, true);
     
     // Set card data
-    card.querySelector('.card-name').textContent = craft.result_card || 'Unknown Card';
-    card.querySelector('.crafter-name').textContent = formatAddress(craft.crafter);
-    card.querySelector('.craft-result').textContent = craft.result_card || 'New Card';
-    card.querySelector('.transaction-time').textContent = formatDateTime(craft.timestamp);
+    card.querySelector('.card-name').textContent = craft.cardName || craft.assetName || 'Unknown Card';
+    card.querySelector('.crafter-name').textContent = formatAddress(craft.recipient || 'Unknown');
+    
+    // Handle the craft time display
+    const craftTime = card.querySelector('.craft-time');
+    if (craftTime) {
+      // Use timestampISO if available, otherwise try to format based on what we have
+      if (craft.timestampISO) {
+        craftTime.textContent = formatDateTime(craft.timestampISO);
+      } else {
+        const craftDate = getFormattedDate(craft);
+        if (craftDate) {
+          craftTime.textContent = formatDateTime(craftDate);
+        } else {
+          craftTime.textContent = 'Unknown time';
+        }
+      }
+    }
     
     // Add animation class for new items
     const cardElement = card.querySelector('.transaction-card');
@@ -74,9 +96,47 @@ export function renderCraftCards(crafts, container, newItemIds = []) {
       cardElement.classList.add('new-item-animation');
     }
     
+    // Add blockchain badge if needed
+    if (craft.blockchain) {
+      const badge = document.createElement('span');
+      badge.className = `blockchain-badge ${craft.blockchain}`;
+      badge.textContent = craft.blockchain;
+      cardElement.appendChild(badge);
+    }
+    
     // Append card to container
     container.appendChild(card);
   });
+}
+
+// Helper functions for consistent timestamp handling
+function getTimestampInMillis(item) {
+  if (item.date) {
+    return new Date(item.date).getTime();
+  } else if (item.timestamp) {
+    // If it's an Ardor timestamp (seconds since Ardor epoch)
+    if (typeof item.timestamp === 'number' && item.timestamp < 1e10) {
+      return ardorTimestampToDate(item.timestamp).getTime();
+    }
+    // Otherwise assume it's a standard timestamp
+    return new Date(item.timestamp).getTime();
+  }
+  return 0; // Default to 0 if no timestamp found
+}
+
+function getFormattedDate(item) {
+  if (item.date) {
+    // If date is already provided, use it directly
+    return new Date(item.date).toISOString();
+  } else if (item.timestamp) {
+    // If it's an Ardor timestamp (seconds since Ardor epoch)
+    if (typeof item.timestamp === 'number' && item.timestamp < 1e10) {
+      return ardorTimestampToDate(item.timestamp).toISOString();
+    }
+    // Otherwise assume it's a standard timestamp
+    return new Date(item.timestamp).toISOString();
+  }
+  return null;
 }
 
 /**
@@ -86,7 +146,7 @@ export function renderCraftCards(crafts, container, newItemIds = []) {
  * @param {Array} currentCrafts - Current craft data 
  * @returns {Array} Array of new craft IDs
  */
-export function findNewCrafts(previousCrafts, currentCrafts) {
+export function findNewCraftings(previousCrafts, currentCrafts) {
   if (!previousCrafts || !currentCrafts) return [];
   
   const previousIds = new Set(previousCrafts.map(craft => craft.id));

@@ -183,7 +183,7 @@ export async function fetchGiftzSales() {
  */
 export async function fetchCrafts() {
   const currentPeriod = getState('currentPeriod');
-  const response = await fetchWithTimeout(`${API_BASE_URL}/crafts?period=${currentPeriod}`);
+  const response = await fetchWithTimeout(`${API_BASE_URL}/ardor/craftings`);
   return handleResponse(response);
 }
 

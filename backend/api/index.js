@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const cache = require('../cache');
 const ardorService = require('../services/ardorService');
 const polygonService = require('../services/polygonService');
 const { readJSON, writeJSON } = require('../utils/jsonStorage');
@@ -8,10 +7,12 @@ const { readJSON, writeJSON } = require('../utils/jsonStorage');
 // Import specific route modules
 const ardorRoutes = require('./ardorRoutes');
 const polygonRoutes = require('./polygonRoutes');
+const cacheRoutes = require('./cacheRoutes');
 
 // Register routes
 router.use('/ardor', ardorRoutes);
 router.use('/polygon', polygonRoutes);
+router.use('/cache', cacheRoutes);
 
 // General status endpoint
 router.get('/status', (req, res) => {
@@ -38,12 +39,12 @@ router.get('/tracked-assets', async (req, res) => {
         ardorRegularCardsCount: ardorAssets.regularCards.length,
         ardorSpecialCardsCount: ardorAssets.specialCards.length,
         ardorSpecificTokensCount: ardorAssets.specificTokens.length,
-        polygonTokensCount: polygonTokens.tokens.length,
+        polygonTokensCount: polygonTokens.tokens ? polygonTokens.tokens.length : 0,
         totalAssetsTracked: 
           ardorAssets.regularCards.length + 
           ardorAssets.specialCards.length + 
           ardorAssets.specificTokens.length +
-          polygonTokens.tokens.length
+          (polygonTokens.tokens ? polygonTokens.tokens.length : 0)
       },
       timestamp: new Date().toISOString()
     };
@@ -54,20 +55,6 @@ router.get('/tracked-assets', async (req, res) => {
     res.json(combinedData);
   } catch (error) {
     console.error('Error in combined tracked assets endpoint:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Cache status endpoint (for debugging)
-router.get('/cache/status', (req, res) => {
-  try {
-    const stats = cache.stats();
-    res.json({
-      stats,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error in cache status endpoint:', error);
     res.status(500).json({ error: error.message });
   }
 });

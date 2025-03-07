@@ -1,0 +1,328 @@
+{
+  "craftings": [
+    {
+      "id": "05047f072f0eace390d491643d396d5457d5a33aa0c898dc5a75e2b90c8a529c",
+      "timestamp": 226450361,
+      "date": "1977-03-05T22:52:41.000Z",
+      "recipient": "ARDOR-BEBY-WSGY-XU9N-HALPR",
+      "assetId": "1462047204733593633",
+      "assetName": "mythical22",
+      "cardName": "Jepá",
+      "cardRarity": "rare",
+      "cardType": "Aquatic",
+      "cardsUsed": 2,
+      "fullHash": "05047f072f0eace390d491643d396d5457d5a33aa0c898dc5a75e2b90c8a529c",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 150,
+        "amountNQTSpent": 150,
+        "transactionTrigger": "871e5b6dc2b35ca5239afc1aad4e277d5745d13778228b8d764b724cbc99a2b9",
+        "transactionSpent": [
+          "0440695585d4c023fd3ab374f35a5bfde5336247c313a96f386bf1b2566e07c8",
+          "871e5b6dc2b35ca5239afc1aad4e277d5745d13778228b8d764b724cbc99a2b9"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "7d24c3d93a00b5c2262cc05a8627ad33469bdfb82d7688ae175a63bf6aa392f6",
+      "timestamp": 226307070,
+      "date": "1977-03-04T07:04:30.000Z",
+      "recipient": "ARDOR-W84R-KYMV-ZERQ-GGD4X",
+      "assetId": "11654119158397769364",
+      "assetName": "mythical2",
+      "cardName": "Haechi",
+      "cardRarity": "rare",
+      "cardType": "Terrestrial",
+      "cardsUsed": 2,
+      "fullHash": "7d24c3d93a00b5c2262cc05a8627ad33469bdfb82d7688ae175a63bf6aa392f6",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 150,
+        "amountNQTSpent": 150,
+        "transactionTrigger": "f63a8c52d38ce77ad984c0b24373a349b007558428f3a2969b0b93573186e463",
+        "transactionSpent": [
+          "917b992524a089fc466b1ddd977cc52d47f0fcf811a9f872eb96b418a8acf0ba",
+          "f63a8c52d38ce77ad984c0b24373a349b007558428f3a2969b0b93573186e463"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "be4f98e38bc24ebb38da36dccfa52afcb1cb7c314c5177a5f48184e82a2870da",
+      "timestamp": 226247581,
+      "date": "1977-03-03T14:33:01.000Z",
+      "recipient": "ARDOR-W84R-KYMV-ZERQ-GGD4X",
+      "assetId": "7535070915409870441",
+      "assetName": "mythical34",
+      "cardName": "Ifrit",
+      "cardRarity": "rare",
+      "cardType": "Terrestrial",
+      "cardsUsed": 2,
+      "fullHash": "be4f98e38bc24ebb38da36dccfa52afcb1cb7c314c5177a5f48184e82a2870da",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 150,
+        "amountNQTSpent": 150,
+        "transactionTrigger": "485b5c4f4947d5c63cea1b0c94a606b76f638c71d153e43aeb26ac7f442a9d4d",
+        "transactionSpent": [
+          "485b5c4f4947d5c63cea1b0c94a606b76f638c71d153e43aeb26ac7f442a9d4d",
+          "b60f05e8c48b7f2600b76aebdfed020200e28c48c63512faa9f9585c915d8e2c"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "a3499a2123787fef660f50f708b65514a2e8c7977a565bcf20476655c7fa5580",
+      "timestamp": 226246279,
+      "date": "1977-03-03T14:11:19.000Z",
+      "recipient": "ARDOR-W84R-KYMV-ZERQ-GGD4X",
+      "assetId": "13244842214545819858",
+      "assetName": "mythical42",
+      "cardName": "Nessie",
+      "cardRarity": "rare",
+      "cardType": "Aquatic",
+      "cardsUsed": 2,
+      "fullHash": "a3499a2123787fef660f50f708b65514a2e8c7977a565bcf20476655c7fa5580",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 150,
+        "amountNQTSpent": 150,
+        "transactionTrigger": "2a61bf1addfa1931e107c0fdc9ac2d885bcc26a40edb52d0ca5365b98bd1ed70",
+        "transactionSpent": [
+          "230332fb2d9c7eef7966de93eca36bb39e701f3d250a676d51c6948f295f1f98",
+          "2a61bf1addfa1931e107c0fdc9ac2d885bcc26a40edb52d0ca5365b98bd1ed70"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "31b2c5e8735d9f4abcfec39b6274134e899780373d6a53af5885705e0d248db1",
+      "timestamp": 226233637,
+      "date": "1977-03-03T10:40:37.000Z",
+      "recipient": "ARDOR-W84R-KYMV-ZERQ-GGD4X",
+      "assetId": "5384772991499461482",
+      "assetName": "mythical52",
+      "cardName": "Bunyip",
+      "cardRarity": "rare",
+      "cardType": "Aquatic",
+      "cardsUsed": 2,
+      "fullHash": "31b2c5e8735d9f4abcfec39b6274134e899780373d6a53af5885705e0d248db1",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 150,
+        "amountNQTSpent": 150,
+        "transactionTrigger": "1d5684985fc791f7a98143ab9447c31fff2cb1f799718f4e9a0144c92b3f62bb",
+        "transactionSpent": [
+          "1d5684985fc791f7a98143ab9447c31fff2cb1f799718f4e9a0144c92b3f62bb",
+          "c7464ce29b71c22a8f6a6aa9ace5641436adb3cc79e9dd03b7d020e040fedf1c"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "8184150522a3277ec3005f886a9610b34549fc6ab29a99ba368dc7f18512970c",
+      "timestamp": 225655160,
+      "date": "1977-02-24T17:59:20.000Z",
+      "recipient": "ARDOR-24CM-EQMW-BKXE-22QR2",
+      "assetId": "16570943417360649598",
+      "assetName": "mythical45",
+      "cardName": "Lisovik",
+      "cardRarity": "rare",
+      "cardType": "Terrestrial",
+      "cardsUsed": 1,
+      "fullHash": "8184150522a3277ec3005f886a9610b34549fc6ab29a99ba368dc7f18512970c",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 1
+      }
+    },
+    {
+      "id": "24c267ccdb7d7b73963637508493812d07f9fe567817ec7bc8ca63d7e1a60d63",
+      "timestamp": 225655160,
+      "date": "1977-02-24T17:59:20.000Z",
+      "recipient": "ARDOR-24CM-EQMW-BKXE-22QR2",
+      "assetId": "11654119158397769364",
+      "assetName": "mythical2",
+      "cardName": "Haechi",
+      "cardRarity": "rare",
+      "cardType": "Terrestrial",
+      "cardsUsed": 1,
+      "fullHash": "24c267ccdb7d7b73963637508493812d07f9fe567817ec7bc8ca63d7e1a60d63",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 1
+      }
+    },
+    {
+      "id": "344469058eaa29e33b0dfb83eca6954e018287c372d191fcd557adda56cb1955",
+      "timestamp": 225647609,
+      "date": "1977-02-24T15:53:29.000Z",
+      "recipient": "ARDOR-24CM-EQMW-BKXE-22QR2",
+      "assetId": "7024690161218732154",
+      "assetName": "mythical13",
+      "cardName": "Kanmare",
+      "cardRarity": "rare",
+      "cardType": "Aerial",
+      "cardsUsed": 2,
+      "fullHash": "344469058eaa29e33b0dfb83eca6954e018287c372d191fcd557adda56cb1955",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 150,
+        "amountNQTSpent": 150,
+        "transactionTrigger": "82af2c64aadfa2297fd4c9f45712a1fd33110b18be26760bfe1ed1fb4bd193c3",
+        "transactionSpent": [
+          "3901f3256307f8e26b91bb94cc3f2138f1beb4fb2b581560a764c4f568472504",
+          "82af2c64aadfa2297fd4c9f45712a1fd33110b18be26760bfe1ed1fb4bd193c3"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "212ff826df4d941190819718c193d1d955fb711dd5d1acfe90aedcdac82d6fbc",
+      "timestamp": 225518350,
+      "date": "1977-02-23T03:59:10.000Z",
+      "recipient": "ARDOR-GWRU-X868-DFKM-B5CZZ",
+      "assetId": "7024690161218732154",
+      "assetName": "mythical13",
+      "cardName": "Kanmare",
+      "cardRarity": "rare",
+      "cardType": "Aerial",
+      "cardsUsed": 2,
+      "fullHash": "212ff826df4d941190819718c193d1d955fb711dd5d1acfe90aedcdac82d6fbc",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 150,
+        "amountNQTSpent": 150,
+        "transactionTrigger": "eb0589315952ff87777c065a9817a4cbdbac09c133de88bb500daae568a2b7ec",
+        "transactionSpent": [
+          "275f1b2998423ee81df7d91fa9ed957e5cafa5635369ff23c14f8b7c410e70f4",
+          "eb0589315952ff87777c065a9817a4cbdbac09c133de88bb500daae568a2b7ec"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "21c14b6c24ec248a0328c36632ff5ac68bb8f3a9018f5f9027d4089def1ed66e",
+      "timestamp": 225404568,
+      "date": "1977-02-21T20:22:48.000Z",
+      "recipient": "ARDOR-24CM-EQMW-BKXE-22QR2",
+      "assetId": "7535070915409870441",
+      "assetName": "mythical34",
+      "cardName": "Ifrit",
+      "cardRarity": "rare",
+      "cardType": "Terrestrial",
+      "cardsUsed": 2,
+      "fullHash": "21c14b6c24ec248a0328c36632ff5ac68bb8f3a9018f5f9027d4089def1ed66e",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 150,
+        "amountNQTSpent": 150,
+        "transactionTrigger": "855680d725135c83de3a4de9d43c39db8a3d9075ed54c5cef1709b946b3ddf30",
+        "transactionSpent": [
+          "855680d725135c83de3a4de9d43c39db8a3d9075ed54c5cef1709b946b3ddf30",
+          "9b60bd8cb69830595983d62f459922eb6b0e12d7bd0548f2f6e388c4145f214d"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "383ca25f044f78c026e85681455eb3df28494c48cb36f81ecc2ea4a0c28bff2e",
+      "timestamp": 224577679,
+      "date": "1977-02-12T06:41:19.000Z",
+      "recipient": "ARDOR-GWRU-X868-DFKM-B5CZZ",
+      "assetId": "9118586585609900793",
+      "assetName": "mythical51",
+      "cardName": "Dybbuk",
+      "cardRarity": "very rare",
+      "cardType": "Terrestrial",
+      "cardsUsed": 2,
+      "fullHash": "383ca25f044f78c026e85681455eb3df28494c48cb36f81ecc2ea4a0c28bff2e",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 450,
+        "amountNQTSpent": 450,
+        "transactionTrigger": "a1cb24649c3008567d60d663fe02dfd1d88fef21b28941f34cffe300cbddf664",
+        "transactionSpent": [
+          "1a37a25006b14280196dc4975dc333ff73d5c70c4a7d388e40399a73a1505a63",
+          "a1cb24649c3008567d60d663fe02dfd1d88fef21b28941f34cffe300cbddf664"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "12f784451409609c421a2483724e81671f7aef1de75fe0f4bb85c53743ba0d53",
+      "timestamp": 224061573,
+      "date": "1977-02-06T07:19:33.000Z",
+      "recipient": "ARDOR-GWRU-X868-DFKM-B5CZZ",
+      "assetId": "15778342868690621160",
+      "assetName": "mythical11",
+      "cardName": "Pele",
+      "cardRarity": "very rare",
+      "cardType": "Terrestrial",
+      "cardsUsed": 2,
+      "fullHash": "12f784451409609c421a2483724e81671f7aef1de75fe0f4bb85c53743ba0d53",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 450,
+        "amountNQTSpent": 450,
+        "transactionTrigger": "2a2e58adc6fabdc023426746f7d124c004755a659e75a5d2b1f4ca6b5281ca51",
+        "transactionSpent": [
+          "2a2e58adc6fabdc023426746f7d124c004755a659e75a5d2b1f4ca6b5281ca51",
+          "7bf8cce0657740875723936996698db143a18858704539892dac07b229589a15"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
+      "id": "876e1de494f9af5452d54e35938df74a37a51657363ab0a50f10157d66328c0f",
+      "timestamp": 224039978,
+      "date": "1977-02-06T01:19:38.000Z",
+      "recipient": "ARDOR-GWRU-X868-DFKM-B5CZZ",
+      "assetId": "1328293559375692481",
+      "assetName": "mythical32",
+      "cardName": "Ninki Nanka",
+      "cardRarity": "very rare",
+      "cardType": "Terrestrial",
+      "cardsUsed": 2,
+      "fullHash": "876e1de494f9af5452d54e35938df74a37a51657363ab0a50f10157d66328c0f",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 450,
+        "amountNQTSpent": 450,
+        "transactionTrigger": "d77a93208aa31f4c902bf12cd1ddbe357792b2a9860340813a6890e9791b8c5e",
+        "transactionSpent": [
+          "37fc65c18b6eeb86e7cf073183a248dbc1816b5bc09f072ddbae9b2a6f9f132e",
+          "d77a93208aa31f4c902bf12cd1ddbe357792b2a9860340813a6890e9791b8c5e"
+        ],
+        "serialForRandom": "0"
+      }
+    }
+  ],
+  "count": 13,
+  "timestamp": "2025-03-07T21:03:25.796Z"
+}

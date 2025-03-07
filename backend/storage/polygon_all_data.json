@@ -1,0 +1,10 @@
+{
+  "trades": 23,
+  "activeUsers": 453,
+  "trackedTokens": {
+    "tokenCount": 62,
+    "contractAddress": "0xcf55f528492768330c0750a6527c1dfb50e2a7c3",
+    "contractName": "Mythical Beings"
+  },
+  "timestamp": "2025-03-06T20:26:30.047Z"
+}
