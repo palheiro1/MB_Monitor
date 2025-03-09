@@ -9,7 +9,7 @@ module.exports = {
   MB_CONTRACT_ADDRESS: '0xcf55f528492768330c0750a6527c1dfb50e2a7c3',
   
   // Ardor configuration
-  ARDOR_API_URL: 'https://ardor.jelurida.com/nxt',
+  ARDOR_API_URL: 'http://localhost:27876/nxt',
   ARDOR_BURN_ACCOUNT: 'ARDOR-Q9KZ-74XD-WERK-CV6GB',
   REGULAR_CARDS_ISSUER: 'ARDOR-4V3B-TVQA-Q6LF-GMH3T',
   SPECIAL_CARDS_ISSUER: 'ARDOR-5NCL-DRBZ-XBWF-DDN5T',

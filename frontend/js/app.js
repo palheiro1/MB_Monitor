@@ -1,12 +1,21 @@
 /**
- * Mythical Beings Monitor - Simplified Version
- * This version focuses specifically on showing the burns data
+ * Mythical Beings Monitor - Main Application
  */
+
+import { renderCraftCards } from './components/transactions/crafts.js';
+import { renderBurnCards } from './components/transactions/burns.js';
+import { formatTimeAgo, formatDate } from './utils/formatters.js';
 
 // Configuration
 const config = {
   apiUrl: '/api',
   refreshInterval: 60000  // 1 minute
+};
+
+// Application state
+const appState = {
+  currentPeriod: '30d',
+  isLoading: false
 };
 
 // DOM Elements
@@ -30,7 +39,7 @@ const templates = {
   craftCard: document.getElementById('craft-card-template')
 };
 
-// Track active tab for refresh focus
+// Active tabs tracking
 let activeTabs = {
   burns: true,
   trades: false,
@@ -40,19 +49,28 @@ let activeTabs = {
 /**
  * Fetch data from API
  * @param {string} endpoint - API endpoint
- * @returns {Promise<any>} - JSON data
  */
 async function fetchData(endpoint) {
-  console.log(`Fetching from: ${config.apiUrl}/${endpoint}`);
-  
   try {
+    console.log(`Fetching from: ${config.apiUrl}/${endpoint}`);
     const response = await fetch(`${config.apiUrl}/${endpoint}`);
+    
     if (!response.ok) {
+      console.error(`API Error: ${response.status} ${response.statusText}`);
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
-    const data = await response.json();
-    console.log(`Data fetched from ${endpoint}:`, data);
-    return data;
+    
+    // First try to parse as JSON
+    try {
+      const data = await response.json();
+      console.log(`Data fetched from ${endpoint}:`, data);
+      return data;
+    } catch (parseError) {
+      // If JSON parsing fails, get the text and log it for debugging
+      const text = await response.text();
+      console.error(`Failed to parse JSON for ${endpoint}. Response text:`, text);
+      throw new Error(`Invalid JSON response: ${parseError.message}`);
+    }
   } catch (error) {
     console.error(`Error fetching ${endpoint}:`, error);
     return null;
@@ -165,11 +183,101 @@ function hideLoading() {
 }
 
 /**
+ * Show loading overlay - alias for showLoading for consistency across code
+ */
+function showLoadingOverlay() {
+  showLoading();
+}
+
+/**
+ * Hide loading overlay - alias for hideLoading for consistency across code
+ */
+function hideLoadingOverlay() {
+  hideLoading();
+}
+
+/**
  * Update last updated time
  */
 function updateLastUpdatedTime() {
   if (elements.lastUpdate) {
     elements.lastUpdate.textContent = formatDate(new Date());
+  }
+}
+
+// Add this function to avoid the reference error
+function updateLastUpdateTime() {
+  updateLastUpdatedTime();
+}
+
+/**
+ * Get current period from active period selector
+ * @returns {string} Current period (24h, 7d, 30d, all)
+ */
+function getCurrentPeriod() {
+  const activeButton = document.querySelector('.period-selector.active');
+  return activeButton ? activeButton.dataset.period : '30d'; // Default to 30d
+}
+
+/**
+ * Get API base URL
+ * @returns {string} API base URL
+ */
+function getApiBaseUrl() {
+  return config.apiUrl;
+}
+
+/**
+ * Format a number for display
+ * @param {number} num - Number to format
+ * @returns {string} Formatted number
+ */
+function formatNumber(num) {
+  return num.toLocaleString();
+}
+
+/**
+ * Show error message
+ * @param {string} message - Error message to display
+ */
+function showErrorMessage(message) {
+  console.error(message);
+  
+  // Update status badge to show error
+  if (elements.statusBadge) {
+    elements.statusBadge.className = 'badge rounded-pill bg-danger me-2';
+    elements.statusBadge.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Error';
+  }
+  
+  // Create and show an error toast if toast container exists
+  const toastContainer = document.getElementById('toast-container');
+  if (toastContainer) {
+    const toastId = 'error-' + Date.now();
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+      <div class="toast-header bg-danger text-white">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <strong class="me-auto">Error</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body">
+        ${message}
+      </div>
+    `;
+    toastContainer.appendChild(toast);
+    
+    // Initialize and show the toast
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    // Remove after hiding
+    toast.addEventListener('hidden.bs.toast', () => {
+      toast.remove();
+    });
   }
 }
 
@@ -569,95 +677,106 @@ async function loadArdorTrades() {
     showLoading('ardorTrades');
     
     // Use 'all' as the default period instead of '30d'
-    const period = 'all';
+    const period = getCurrentPeriod();
     console.log(`Loading Ardor trades with period: ${period}`);
     
-    const url = `/api/trades/ardor?period=${period}`;
+    const url = `${getApiBaseUrl()}/trades/ardor?period=${period}`;
     const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load trades: ${response.status} ${response.statusText}`);
+    }
+    
     const data = await response.json();
     
     if (!data || !data.ardor_trades) {
       console.error('Invalid Ardor trades data');
-      showErrorMessage('ardorTrades', 'Failed to load Ardor trades');
+      showErrorMessage('Failed to load Ardor trades');
       return;
     }
     
-    // Store data
-    const tradesData = getState('currentData.tradesData') || {};
-    tradesData.ardor_trades = data.ardor_trades;
-    setState('currentData.tradesData', tradesData);
-    
-    // Update display
-    hideLoading('ardorTrades');
-    renderTradeCards(data.ardor_trades, getElement('ardorTradesCards'), []);
+    // Display trades data
+    displayTrades(data.ardor_trades);
     
     // Update trades counter with the full count
     if (elements.tradeCounter) {
-      elements.tradeCounter.textContent = data.count;
+      elements.tradeCounter.textContent = data.count || data.ardor_trades.length;
     }
     
     console.log(`Loaded ${data.ardor_trades.length} Ardor trades`);
+    
+    // Update last update time
+    updateLastUpdatedTime();
   } catch (error) {
     console.error('Error loading Ardor trades:', error);
-    showErrorMessage('ardorTrades', 'Error loading trades');
+    showErrorMessage('Error loading trades: ' + error.message);
+  } finally {
+    hideLoading();
   }
 }
 
 /**
- * Load Ardor craftings data
+ * Load Ardor crafting operations from API
+ * @param {boolean} showLoading - Whether to show loading indicator
  */
-async function loadArdorCraftings() {
-  console.log("Loading Ardor craftings data");
-  showLoading();
-  
+async function loadArdorCraftings(showLoading = true) {
   try {
-    // Add refresh parameter if needed
-    const refreshParam = new URLSearchParams(window.location.search).get('refresh') === 'true' ? '?refresh=true' : '';
+    if (showLoading) {
+      showLoadingOverlay();
+    }
     
-    console.log(`Fetching Ardor craftings with params: ${refreshParam}`);
-    const craftingsResponse = await fetchData(`ardor/craftings${refreshParam}`);
+    const period = getCurrentPeriod();
+    console.log(`Loading Ardor crafting operations for period: ${period}`);
     
-    if (craftingsResponse && craftingsResponse.craftings) {
-    // First try to get data from API
-    console.log("Fetching Ardor craftings");
-    const craftingsResponse = await fetchData('ardor/craftings');
+    const response = await fetch(`${getApiBaseUrl()}/crafts?period=${period}`);
+    if (!response.ok) {
+      throw new Error(`Failed to load crafting data: ${response.statusText}`);
+    }
     
-    if (craftingsResponse && craftingsResponse.craftings) {
-      console.log(`Found ${craftingsResponse.count} Ardor craftings`);
-      displayCraftings(craftingsResponse.craftings);
-      updateCraftsCounter(craftingsResponse.count);
-      updateLastUpdatedTime();
-    } else {
-      // If API fetch fails, try through cache file
-      console.log("API fetch failed, trying cache file");
-      const cacheFile = await fetchData('cache/file/ardor_craftings');
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      console.error('Error parsing crafting data JSON:', parseError);
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+      throw new Error('Invalid JSON response from crafting API');
+    }
+    
+    if (!data || !data.craftings || !Array.isArray(data.craftings)) {
+      console.error('Invalid crafting data format received from API:', data);
+      if (showLoading) hideLoadingOverlay();
+      return;
+    }
+    
+    console.log(`Loaded ${data.craftings.length} crafting operations`);
+    
+    // Clear the container first
+    if (elements.craftCardsContainer) {
+      elements.craftCardsContainer.innerHTML = '';
       
-      if (cacheFile && cacheFile.status === 'success' && cacheFile.data && cacheFile.data.craftings) {
-        const craftings = cacheFile.data.craftings;
-        
-        console.log(`Found ${craftings.length} Ardor craftings in cache file`);
-        displayCraftings(craftings);
-        updateCraftsCounter(craftings.length);
-        updateLastUpdatedTime();
+      if (data.craftings.length === 0) {
+        elements.craftCardsContainer.innerHTML = '<div class="empty-state">No crafting operations found for the selected period</div>';
       } else {
-        console.error("No craftings data found in cache file");
-        updateCraftsCounter(0);
-        
-        // Add no data message
-        if (elements.craftCardsContainer) {
-          elements.craftCardsContainer.innerHTML = `
-            <div class="text-center p-4 text-muted">
-              No crafting data available. Please try refreshing.
-            </div>
-          `;
-        }
+        // Use the imported renderCraftCards function with the right parameters
+        renderCraftCards(elements.craftCardsContainer, data.craftings, { animateEntrance: false });
       }
     }
+    
+    // Update summary stats if available
+    if (data.count !== undefined && elements.craftCounter) {
+      elements.craftCounter.textContent = formatNumber(data.count);
+    }
+    
+    // Update last update time
+    updateLastUpdatedTime(); // Use the corrected function name here
+    
   } catch (error) {
-    console.error("Error loading Ardor craftings:", error);
-    updateCraftsCounter(0);
+    console.error('Error loading crafting data:', error);
   } finally {
-    hideLoading();
+    if (showLoading) {
+      hideLoadingOverlay();
+    }
   }
 }
 

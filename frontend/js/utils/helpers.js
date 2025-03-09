@@ -14,9 +14,15 @@
  */
 export function debounce(func, wait) {
   let timeout;
-  return function(...args) {
+  
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    
     clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), wait);
+    timeout = setTimeout(later, wait);
   };
 }
 
@@ -28,13 +34,14 @@ export function debounce(func, wait) {
  * @returns {Array} New items that weren't in the previous data
  */
 export function getNewItems(prevItems, currentItems) {
-  if (!prevItems || !currentItems || !prevItems.length || !currentItems.length) return [];
+  if (!prevItems || !Array.isArray(prevItems)) return [];
+  if (!currentItems || !Array.isArray(currentItems)) return [];
   
-  // Get IDs of previous items
+  // Get all previous IDs for quick lookup
   const prevIds = new Set(prevItems.map(item => item.id));
   
-  // Filter current items to find ones not in previous data
-  return currentItems.filter(item => !prevIds.has(item.id));
+  // Return items that don't exist in previous data
+  return currentItems.filter(item => item && item.id && !prevIds.has(item.id));
 }
 
 /**
@@ -47,4 +54,38 @@ export function getNewItems(prevItems, currentItems) {
  */
 export function clamp(num, min, max) {
   return Math.min(Math.max(num, min), max);
+}
+
+/**
+ * Create a simple UUID for client-side use
+ * 
+ * @returns {string} UUID string
+ */
+export function createUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Format a number for display with thousands separators
+ * 
+ * @param {number} num - Number to format
+ * @returns {string} Formatted number
+ */
+export function formatNumber(num) {
+  if (num === undefined || num === null) return '0';
+  return num.toLocaleString();
+}
+
+/**
+ * Deep clone an object
+ * 
+ * @param {any} obj - Object to clone
+ * @returns {any} Cloned object
+ */
+export function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
 }

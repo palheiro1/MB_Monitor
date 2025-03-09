@@ -8,11 +8,13 @@ const { readJSON, writeJSON } = require('../utils/jsonStorage');
 const ardorRoutes = require('./ardorRoutes');
 const polygonRoutes = require('./polygonRoutes');
 const cacheRoutes = require('./cacheRoutes');
+const craftsRouter = require('./crafts'); // Add this line
 
 // Register routes
 router.use('/ardor', ardorRoutes);
 router.use('/polygon', polygonRoutes);
 router.use('/cache', cacheRoutes);
+router.use('/crafts', craftsRouter); // Add this line
 
 // General status endpoint
 router.get('/status', (req, res) => {

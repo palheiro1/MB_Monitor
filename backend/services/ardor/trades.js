@@ -117,7 +117,7 @@ async function getAssetTrades(assetId) {
  */
 function ardorTimestampToDate(timestamp) {
   // Ardor epoch start: January 1, 2018
-  const ARDOR_EPOCH = new Date("2018-01-01T00:00:00Z").getTime();
+  const ARDOR_EPOCH = 1514764800000; // milliseconds since Unix epoch
   return new Date(ARDOR_EPOCH + timestamp * 1000).toISOString();
 }
 

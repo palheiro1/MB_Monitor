@@ -12,9 +12,7 @@ const DEFAULT_CONFIG = {
   DEFAULT_PERIOD: '30d',
   ANIMATION_ENABLED: true,
   CHART_ANIMATION_DURATION: 800,
-  COUNTER_ANIMATION_DURATION: 1000,
-  MAX_NOTIFICATIONS: 3,
-  NOTIFICATION_DURATION: 5000
+  COUNTER_ANIMATION_DURATION: 1000
 };
 
 // Load configuration from environment or defaults
@@ -42,7 +40,6 @@ let state = {
   lastUpdate: null,
   
   // Data storage
-  previousData: {},
   currentData: {
     statsData: null,
     activityData: null,
@@ -53,33 +50,28 @@ let state = {
     burnsData: null,
     usersData: null,
     cacheData: null
-  }
+  },
+  
+  // Previous data (for comparison)
+  previousData: {}
 };
 
 /**
- * Load configuration from environment variables or data attributes
+ * Load configuration from data attributes in the script tag
  * @returns {Object} Configuration object
  */
 function loadConfig() {
-  // Try to load from script data attributes
-  const configScript = document.getElementById('app-config');
+  const config = {...DEFAULT_CONFIG};
+  const configEl = document.getElementById('app-config');
   
-  if (configScript) {
-    const dataset = configScript.dataset;
-    
-    return {
-      API_BASE_URL: dataset.apiUrl || DEFAULT_CONFIG.API_BASE_URL,
-      REFRESH_INTERVAL: parseInt(dataset.refreshInterval) || DEFAULT_CONFIG.REFRESH_INTERVAL,
-      DEFAULT_PERIOD: dataset.defaultPeriod || DEFAULT_CONFIG.DEFAULT_PERIOD,
-      ANIMATION_ENABLED: dataset.animationEnabled !== 'false',
-      CHART_ANIMATION_DURATION: parseInt(dataset.chartAnimationDuration) || DEFAULT_CONFIG.CHART_ANIMATION_DURATION,
-      COUNTER_ANIMATION_DURATION: parseInt(dataset.counterAnimationDuration) || DEFAULT_CONFIG.COUNTER_ANIMATION_DURATION,
-      MAX_NOTIFICATIONS: parseInt(dataset.maxNotifications) || DEFAULT_CONFIG.MAX_NOTIFICATIONS,
-      NOTIFICATION_DURATION: parseInt(dataset.notificationDuration) || DEFAULT_CONFIG.NOTIFICATION_DURATION
-    };
+  if (configEl) {
+    if (configEl.dataset.apiUrl) config.API_BASE_URL = configEl.dataset.apiUrl;
+    if (configEl.dataset.refreshInterval) config.REFRESH_INTERVAL = parseInt(configEl.dataset.refreshInterval);
+    if (configEl.dataset.defaultPeriod) config.DEFAULT_PERIOD = configEl.dataset.defaultPeriod;
+    if (configEl.dataset.animationEnabled) config.ANIMATION_ENABLED = configEl.dataset.animationEnabled === 'true';
   }
   
-  return { ...DEFAULT_CONFIG };
+  return config;
 }
 
 /**
@@ -134,7 +126,7 @@ export function setState(path, value) {
  * Save current data as previous data for comparison
  */
 export function savePreviousData() {
-  state.previousData = { ...state.currentData };
+  state.previousData = JSON.parse(JSON.stringify(state.currentData));
 }
 
 /**

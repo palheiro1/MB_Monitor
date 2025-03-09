@@ -1,138 +1,100 @@
 /**
  * Burns Component
  * 
- * Handles rendering and management of card burning transactions.
+ * Handles rendering of burn transaction cards
  */
 
-import { getState } from '../../state/index.js';
-import { formatAddress, formatDateTime } from '../../utils/formatters.js';
-import { ardorTimestampToDate } from '../../utils/ardor-utils.js';
+import { formatTimeAgo, formatDate, formatAddress } from '../../utils/formatters.js';
+
+// Ardor epoch constant
+const ARDOR_EPOCH = new Date("2018-01-01T00:00:00Z").getTime();
 
 /**
- * Render burn cards
- * 
- * @param {Array} burns - Array of burn objects
- * @param {HTMLElement} container - Container to render into
- * @param {Array} newItemIds - IDs of new items to animate
+ * Convert Ardor timestamp to Date object
+ * @param {number} timestamp - Ardor timestamp (seconds since epoch)
+ * @returns {Date} JavaScript Date object
  */
-export function renderBurnCards(burns, container, newItemIds = []) {
-  if (!container) return;
-  
-  // Get search term if any
-  const searchInput = container.closest('.tab-pane').querySelector('.search-input');
-  const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  
-  // Filter and sort burns
-  let filteredBurns = burns;
-  
-  if (searchTerm) {
-    filteredBurns = burns.filter(burn => {
-      return (burn.cardName && burn.cardName.toLowerCase().includes(searchTerm)) ||
-             (burn.assetName && burn.assetName.toLowerCase().includes(searchTerm)) ||
-             (burn.sender && burn.sender.toLowerCase().includes(searchTerm));
-    });
+function ardorTimestampToDate(timestamp) {
+  return new Date(ARDOR_EPOCH + (timestamp * 1000));
+}
+
+/**
+ * Render burn cards into a container
+ * @param {HTMLElement} container - DOM element to render cards into
+ * @param {Array} burns - Array of burn transaction objects
+ * @param {Array} newItemIds - Array of IDs for new items to highlight
+ */
+export function renderBurnCards(container, burns, newItemIds = []) {
+  if (!container || !Array.isArray(burns)) {
+    console.error('Invalid container or burns array', { container, burns });
+    return;
   }
   
-  // Sort burns by timestamp
-  filteredBurns = [...filteredBurns].sort((a, b) => {
-    // Get timestamp in milliseconds for consistent comparison
-    const timeA = getTimestampInMillis(a);
-    const timeB = getTimestampInMillis(b);
-    
-    return getState('sortDirection') === 'desc' ? timeB - timeA : timeA - timeB;
-  });
+  console.log(`Rendering ${burns.length} burn cards`);
   
   // Clear container
   container.innerHTML = '';
   
-  // Show message if no burns
-  if (filteredBurns.length === 0) {
-    container.innerHTML = `
-      <div class="text-center p-4 text-muted">
-        No burns found${searchTerm ? ' matching your search' : ''}
-      </div>
-    `;
+  if (burns.length === 0) {
+    container.innerHTML = '<div class="text-center p-4">No burn transactions found</div>';
     return;
   }
   
   // Get template
   const template = document.getElementById('burn-card-template');
-  if (!template) return;
+  if (!template) {
+    console.error('Burn card template not found');
+    return;
+  }
   
   // Create and append burn cards
-  filteredBurns.forEach(burn => {
-    const card = document.importNode(template.content, true);
-    
-    // Set card data
-    card.querySelector('.card-name').textContent = burn.cardName || burn.assetName || 'Unknown Card';
-    card.querySelector('.burner-name').textContent = formatAddress(burn.sender || 'Unknown');
-    
-    // Handle the burn time display
-    const burnTime = card.querySelector('.burn-time');
-    if (burnTime) {
-      // Use timestampISO if available, otherwise try to format based on what we have
-      if (burn.timestampISO) {
-        burnTime.textContent = formatDateTime(burn.timestampISO);
-      } else {
-        const burnDate = getFormattedDate(burn);
-        if (burnDate) {
-          burnTime.textContent = formatDateTime(burnDate);
-        } else {
-          burnTime.textContent = 'Unknown time';
-        }
+  burns.forEach(burn => {
+    try {
+      const card = document.importNode(template.content, true);
+      
+      // Set card data
+      const cardNameEl = card.querySelector('.card-name');
+      if (cardNameEl) {
+        cardNameEl.textContent = burn.cardName || burn.assetName || 'Unknown Card';
       }
+      
+      const burnerNameEl = card.querySelector('.burner-name');
+      if (burnerNameEl) {
+        burnerNameEl.textContent = formatAddress(burn.sender || burn.senderRS || 'Unknown');
+      }
+      
+      // Set transaction time
+      const transactionTimeEl = card.querySelector('.transaction-time');
+      if (transactionTimeEl) {
+        // Convert timestamp if needed
+        let burnDate;
+        if (burn.timestamp) {
+          // Check if it's Ardor timestamp (seconds since epoch) or milliseconds
+          burnDate = burn.timestamp < 1e10 
+            ? ardorTimestampToDate(burn.timestamp)
+            : new Date(burn.timestamp);
+        } else if (burn.date) {
+          burnDate = new Date(burn.date);
+        } else {
+          burnDate = new Date();
+        }
+        
+        transactionTimeEl.textContent = formatTimeAgo(burnDate);
+        transactionTimeEl.title = formatDate(burnDate);
+      }
+      
+      // Set burn amount
+      const amountEl = card.querySelector('.amount');
+      if (amountEl) {
+        amountEl.textContent = burn.quantityQNT || burn.quantityFormatted || '1';
+      }
+      
+      // Add to container
+      container.appendChild(card);
+    } catch (error) {
+      console.error('Error rendering burn card:', error, burn);
     }
-    
-    // Add animation class for new items
-    const cardElement = card.querySelector('.transaction-card');
-    if (getState('animationsEnabled') && newItemIds.includes(burn.id)) {
-      cardElement.classList.add('new-item-animation');
-    }
-    
-    // Add blockchain badge if needed
-    if (burn.blockchain) {
-      const badge = document.createElement('span');
-      badge.className = `blockchain-badge ${burn.blockchain}`;
-      badge.textContent = burn.blockchain;
-      cardElement.appendChild(badge);
-    }
-    
-    // Append card to container
-    container.appendChild(card);
   });
-}
-
-// Helper functions for consistent timestamp handling
-function getTimestampInMillis(item) {
-  if (item.timestampISO) {
-    return new Date(item.timestampISO).getTime();
-  } else if (item.date) {
-    return new Date(item.date).getTime();
-  } else if (item.timestamp) {
-    // If it's an Ardor timestamp (seconds since Ardor epoch)
-    if (typeof item.timestamp === 'number' && item.timestamp < 1e10) {
-      return ardorTimestampToDate(item.timestamp).getTime();
-    }
-    // Otherwise assume it's a standard timestamp
-    return new Date(item.timestamp).getTime();
-  }
-  return 0; // Default to 0 if no timestamp found
-}
-
-function getFormattedDate(item) {
-  if (item.timestampISO) {
-    return item.timestampISO;
-  } else if (item.date) {
-    return new Date(item.date).toISOString();
-  } else if (item.timestamp) {
-    // If it's an Ardor timestamp (seconds since Ardor epoch)
-    if (typeof item.timestamp === 'number' && item.timestamp < 1e10) {
-      return ardorTimestampToDate(item.timestamp).toISOString();
-    }
-    // Otherwise assume it's a standard timestamp
-    return new Date(item.timestamp).toISOString();
-  }
-  return null;
 }
 
 /**
@@ -143,10 +105,22 @@ function getFormattedDate(item) {
  * @returns {Array} Array of new burn IDs
  */
 export function findNewBurns(previousBurns, currentBurns) {
-  if (!previousBurns || !currentBurns) return [];
+  if (!Array.isArray(previousBurns) || !Array.isArray(currentBurns)) {
+    return [];
+  }
   
-  const previousIds = new Set(previousBurns.map(burn => burn.id));
+  // Create a set of IDs from the previous burns for O(1) lookup
+  const previousIds = new Set();
+  previousBurns.forEach(burn => {
+    const id = burn.id || burn.fullHash || burn.assetTransferFullHash;
+    if (id) previousIds.add(id);
+  });
+  
+  // Find burns that weren't in the previous data
   return currentBurns
-    .filter(burn => !previousIds.has(burn.id))
-    .map(burn => burn.id);
+    .filter(burn => {
+      const id = burn.id || burn.fullHash || burn.assetTransferFullHash;
+      return id && !previousIds.has(id);
+    })
+    .map(burn => burn.id || burn.fullHash || burn.assetTransferFullHash);
 }

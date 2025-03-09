@@ -1,76 +1,130 @@
 /**
  * Cache Table Component
  * 
- * Handles rendering the cache statistics table in the debug section.
+ * Handles rendering of cache statistics in a table.
  */
 
 import { getState } from '../state/index.js';
-import { formatNumber, formatFileSize, formatDateRange, formatDateTime } from '../utils/formatters.js';
-import { getElement } from './ui-manager.js';
+import { formatFileSize, formatDateTime, formatDateRange } from '../utils/formatters.js';
 
 /**
  * Render cache statistics table
  */
 export function renderCacheTable() {
-  const cacheFiles = getState('currentData.cacheData')?.cache_files || [];
-  const tableBody = getElement('cacheStatsTable')?.querySelector('tbody');
+  const cacheData = getState('currentData.cacheData');
+  const tableBody = document.querySelector('#cache-stats-table tbody');
   
-  if (!tableBody) return;
-  
-  if (cacheFiles.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="5" class="text-center">No cache files found</td></tr>`;
+  if (!tableBody) {
+    console.log('Cache stats table not found in DOM');
     return;
   }
   
-  let tableHtml = '';
-  cacheFiles.forEach(file => {
-    tableHtml += `
-      <tr>
-        <td>${file.name}</td>
-        <td>${formatNumber(file.records)}</td>
-        <td>${formatFileSize(file.size)}</td>
-        <td>${formatDateRange(file.date_range)}</td>
-        <td>${formatDateTime(file.last_updated)}</td>
-      </tr>
-    `;
-  });
+  if (!cacheData || !cacheData.files) {
+    tableBody.innerHTML = `<tr><td colspan="5" class="text-center">No cache data available</td></tr>`;
+    return;
+  }
   
-  tableBody.innerHTML = tableHtml;
+  try {
+    // Clear existing rows
+    tableBody.innerHTML = '';
+    
+    // No files
+    if (cacheData.files.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="5" class="text-center">No cache files found</td></tr>`;
+      return;
+    }
+    
+    // Render each file
+    cacheData.files.forEach(file => {
+      const row = document.createElement('tr');
+      
+      // Get file details
+      const fileName = file.filename || 'Unknown';
+      const recordCount = getRecordCount(file);
+      const fileSize = file.size || 0;
+      const dateRange = getDateRange(file);
+      const lastUpdated = file.lastModified || null;
+      
+      // Create cells
+      row.innerHTML = `
+        <td>${fileName}</td>
+        <td>${recordCount}</td>
+        <td>${formatFileSize(fileSize)}</td>
+        <td>${formatDateRange(dateRange)}</td>
+        <td>${lastUpdated ? formatDateTime(lastUpdated) : 'Unknown'}</td>
+      `;
+      
+      tableBody.appendChild(row);
+    });
+  } catch (error) {
+    console.error('Error rendering cache table:', error);
+    tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error rendering cache data</td></tr>`;
+  }
 }
 
 /**
- * Get cache statistics summary
- * @returns {Object} Summary of cache statistics
+ * Get record count from cache file data
+ * @param {Object} file - Cache file object
+ * @returns {string} Formatted record count
  */
-export function getCacheStatsSummary() {
-  const cacheFiles = getState('currentData.cacheData')?.cache_files || [];
+function getRecordCount(file) {
+  if (!file.data) return '0';
   
-  // Calculate total size and records
-  let totalSize = 0;
-  let totalRecords = 0;
-  let oldestUpdate = null;
-  let newestUpdate = null;
-  
-  cacheFiles.forEach(file => {
-    totalSize += file.size || 0;
-    totalRecords += file.records || 0;
-    
-    const updated = new Date(file.last_updated).getTime();
-    if (!oldestUpdate || updated < oldestUpdate) {
-      oldestUpdate = updated;
+  // Try to find arrays in the data
+  for (const key in file.data) {
+    if (Array.isArray(file.data[key])) {
+      return file.data[key].length.toString();
     }
-    if (!newestUpdate || updated > newestUpdate) {
-      newestUpdate = updated;
-    }
-  });
+  }
   
-  return {
-    fileCount: cacheFiles.length,
-    totalSize,
-    formattedSize: formatFileSize(totalSize),
-    totalRecords,
-    formattedRecords: formatNumber(totalRecords),
-    oldestUpdate: oldestUpdate ? new Date(oldestUpdate).toISOString() : null,
-    newestUpdate: newestUpdate ? new Date(newestUpdate).toISOString() : null
-  };
+  // Special cases
+  if (file.data.count !== undefined) {
+    return file.data.count.toString();
+  }
+  
+  return '1';
+}
+
+/**
+ * Get date range from cache file data
+ * @param {Object} file - Cache file object
+ * @returns {Object|null} Date range object with start and end dates
+ */
+function getDateRange(file) {
+  if (!file.data) return null;
+  
+  // Try to find date information
+  if (file.data.timestamp) {
+    return {
+      start: file.data.timestamp,
+      end: file.data.timestamp
+    };
+  }
+  
+  // Look for arrays with timestamps
+  for (const key in file.data) {
+    if (Array.isArray(file.data[key]) && file.data[key].length > 0) {
+      const items = file.data[key];
+      
+      // Try to find timestamp fields
+      if (items[0].timestamp || items[0].date) {
+        // Sort by timestamp
+        const sorted = [...items].sort((a, b) => {
+          const aTime = a.timestamp || new Date(a.date).getTime() / 1000;
+          const bTime = b.timestamp || new Date(b.date).getTime() / 1000;
+          return aTime - bTime;
+        });
+        
+        const oldest = sorted[0];
+        const newest = sorted[sorted.length - 1];
+        
+        return {
+          start: oldest.timestamp || oldest.date,
+          end: newest.timestamp || newest.date
+        };
+      }
+    }
+  }
+  
+  return null;
 }

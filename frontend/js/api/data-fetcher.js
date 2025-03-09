@@ -15,13 +15,42 @@ import { checkForNewActivity } from '../components/activity-monitor.js';
 
 let refreshTimer = null;
 
+// Default options for fetch requests
+const defaultOptions = {
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  timeout: 30000 // 30 seconds timeout
+};
+
 /**
  * Fetch initial data with optional loading overlay
  * @param {boolean} showLoadingOverlay - Whether to show loading overlay
  * @returns {Promise} Promise that resolves when all data is fetched
  */
 export async function fetchInitialData(showLoadingOverlay = true) {
-  return fetchAllData(showLoadingOverlay);
+  try {
+    // Save previous data for comparison
+    savePreviousData();
+    
+    // Fetch all data in parallel
+    const [trades, crafts, burns] = await Promise.all([
+      fetchTrades(),
+      fetchCrafts(),
+      fetchBurns()
+    ]);
+    
+    // Store results in state
+    setState('currentData.tradesData', trades);
+    setState('currentData.craftsData', crafts);
+    setState('currentData.burnsData', burns);
+    
+    return { trades, crafts, burns };
+  } catch (error) {
+    console.error('Error fetching initial data:', error);
+    throw error;
+  }
 }
 
 /**
@@ -135,7 +164,7 @@ async function handleResponse(response) {
  * @param {number} timeout - Timeout in milliseconds
  * @returns {Promise} Fetch promise with timeout
  */
-async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+async function fetchWithTimeout(url, options = {}, timeout = defaultOptions.timeout) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   
@@ -181,15 +210,9 @@ export async function fetchActivity() {
 
 export async function fetchTrades() {
   const currentPeriod = getState('currentPeriod');
-  const apiBaseUrl = getApiBaseUrl();
-  
-  try {
-    const response = await fetchWithTimeout(`${apiBaseUrl}/trades?period=${currentPeriod}`);
-    return handleResponse(response);
-  } catch (error) {
-    console.error('Error fetching trades:', error);
-    throw error;
-  }
+  const API_BASE_URL = getApiBaseUrl();
+  const response = await fetchWithTimeout(`${API_BASE_URL}/trades?period=${currentPeriod}`);
+  return handleResponse(response);
 }
 
 export async function fetchGiftzSales() {
@@ -207,15 +230,9 @@ export async function fetchGiftzSales() {
 
 export async function fetchCrafts() {
   const currentPeriod = getState('currentPeriod');
-  const apiBaseUrl = getApiBaseUrl();
-  
-  try {
-    const response = await fetchWithTimeout(`${apiBaseUrl}/crafts?period=${currentPeriod}`);
-    return handleResponse(response);
-  } catch (error) {
-    console.error('Error fetching crafts:', error);
-    throw error;
-  }
+  const API_BASE_URL = getApiBaseUrl();
+  const response = await fetchWithTimeout(`${API_BASE_URL}/crafts?period=${currentPeriod}`);
+  return handleResponse(response);
 }
 
 export async function fetchMorphs() {
@@ -233,15 +250,9 @@ export async function fetchMorphs() {
 
 export async function fetchBurns() {
   const currentPeriod = getState('currentPeriod');
-  const apiBaseUrl = getApiBaseUrl();
-  
-  try {
-    const response = await fetchWithTimeout(`${apiBaseUrl}/burns?period=${currentPeriod}`);
-    return handleResponse(response);
-  } catch (error) {
-    console.error('Error fetching burns:', error);
-    throw error;
-  }
+  const API_BASE_URL = getApiBaseUrl();
+  const response = await fetchWithTimeout(`${API_BASE_URL}/burns?period=${currentPeriod}`);
+  return handleResponse(response);
 }
 
 export async function fetchUsers() {

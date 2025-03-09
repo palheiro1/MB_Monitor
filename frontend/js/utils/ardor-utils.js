@@ -7,7 +7,6 @@
 
 /**
  * Ardor epoch - January 1, 2018 00:00:00 UTC
- * 
  * All Ardor blockchain timestamps are measured in seconds since this date
  */
 export const ARDOR_EPOCH = 1514764800000; // milliseconds (January 1, 2018 UTC)

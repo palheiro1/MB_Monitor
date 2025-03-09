@@ -13,8 +13,6 @@ const { getTrackedAssets } = require('./assets');
 
 /**
  * Helper to convert Ardor timestamp to ISO date string
- * @param {number} timestamp - Ardor timestamp (seconds from Ardor epoch)
- * @returns {string} ISO date string
  */
 function ardorTimestampToDate(timestamp) {
   // Ardor epoch start (January 1, 2018)

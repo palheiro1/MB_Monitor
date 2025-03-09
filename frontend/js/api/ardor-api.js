@@ -476,8 +476,8 @@ export const ARDOR_TRANSACTION_TYPES = {
  * @returns {Date} JavaScript Date object
  */
 export function ardorTimestampToDate(ardorTimestamp) {
-  // Ardor epoch start: 2018-01-01 00:00:00 UTC
-  const ardorEpochMillis = Date.UTC(2018, 0, 1, 0, 0, 0, 0);
+  // Use the shared constant from ardor-utils.js
+  const ardorEpochMillis = 1514764800000; // Jan 1, 2018 UTC
   return new Date(ardorEpochMillis + (ardorTimestamp * 1000));
 }
 

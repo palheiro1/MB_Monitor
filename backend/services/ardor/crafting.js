@@ -7,13 +7,14 @@
 const axios = require('axios');
 const { readJSON, writeJSON } = require('../../utils/jsonStorage');
 const { ARDOR_API_URL, ARDOR_CHAIN_ID } = require('../../config');
-const { getTransactionWithPrunable, extractCraftDetails, getAssetInfo, getAssetTransfersBatch, processTransfer, normalizeTimestamp, GEM_ASSET_ID } = require('./craftingUtils');
+const { getTransactionWithPrunable, extractCraftDetails, getAssetInfo, processTransfer, normalizeTimestamp, GEM_ASSET_ID } = require('./craftingUtils');
 
 // Debug flag - enables verbose logging
 const DEBUG = true;
 
 // Define the craft account (same as in StatsMB project)
 const CRAFT_ACCOUNT = "ARDOR-4V3B-TVQA-Q6LF-GMH3T";
+const CRAFT_ACCOUNT_ID = "17043296434910227497";
 
 // Update the Ardor epoch constant to match the frontend utility
 const ARDOR_EPOCH = 1514764800000; // January 1, 2018 00:00:00 UTC in milliseconds
@@ -33,8 +34,6 @@ const logger = {
   }
 };
 
-const JUNE_2023_TIMESTAMP = new Date('2023-06-01T00:00:00Z').getTime();
-
 /**
  * Convert Ardor timestamp to JavaScript Date object
  * 
@@ -43,6 +42,122 @@ const JUNE_2023_TIMESTAMP = new Date('2023-06-01T00:00:00Z').getTime();
  */
 function ardorTimestampToDate(ardorTimestamp) {
   return new Date(ARDOR_EPOCH + (ardorTimestamp * 1000));
+}
+
+/**
+ * Get all assets issued by an account
+ * @param {string} account - Ardor account ID
+ * @returns {Promise<Array>} - List of asset IDs
+ */
+async function getAccountAssets(account) {
+  try {
+    const response = await axios.get(ARDOR_API_URL, {
+      params: {
+        requestType: "getAssetsByIssuer",
+        account: account,
+        includeCounts: true,
+        firstIndex: 0,
+        lastIndex: 500 // Increase if needed
+      }
+    });
+    
+    if (response.data && response.data.assets) {
+      let assets = response.data.assets;
+      // Flatten the array if needed
+      if (Array.isArray(assets[0])) {
+        assets = assets.flat();
+      }
+      
+      // Filter out assets with supply = 0.
+      assets = assets.filter(asset => {
+        const supply = parseInt(asset.quantityQNT || asset.quantity || "0", 10);
+        return supply > 0;
+      });
+      
+      // Filter by rarity - only keep rare and very rare cards
+      assets = assets.filter(asset => {
+        if (!asset.description) return false;
+        
+        try {
+          // Try to parse as JSON
+          const desc = JSON.parse(asset.description);
+          if (desc && desc.rarity && (desc.rarity === "rare" || desc.rarity === "very rare")) {
+            logger.info(`Found ${desc.rarity} card: ${desc.name || asset.name}`);
+            return true;
+          }
+        } catch (e) {
+          // If JSON parsing fails, try regex
+          try {
+            const rarityMatch = asset.description.match(/"rarity"\s*:\s*"([^"]+)"/);
+            if (rarityMatch && rarityMatch[1] && (rarityMatch[1] === "rare" || rarityMatch[1] === "very rare")) {
+              logger.info(`Found ${rarityMatch[1]} card via regex: ${asset.name}`);
+              return true;
+            }
+          } catch (regexErr) {
+            // Ignore regex errors
+          }
+        }
+        
+        return false;
+      });
+      
+      logger.info(`Filtered to ${assets.length} rare/very rare cards`);
+      return assets.map(asset => asset.asset);
+    }
+    return [];
+  } catch (error) {
+    logger.error(`Error getting account assets for ${account}`, error);
+    return [];
+  }
+}
+
+/**
+ * Get all transfers for an asset
+ * @param {string} assetId - Asset ID
+ * @returns {Promise<Array>} - List of transfers
+ */
+async function getAllAssetTransfers(assetId) {
+  try {
+    let allTransfers = [];
+    let firstIndex = 0;
+    const batchSize = 100;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const response = await axios.get(ARDOR_API_URL, {
+        params: {
+          requestType: "getAssetTransfers",
+          asset: assetId,
+          chain: CHAIN_ID,
+          firstIndex: firstIndex,
+          lastIndex: firstIndex + batchSize - 1
+        }
+      });
+      
+      if (response.data && response.data.transfers && response.data.transfers.length > 0) {
+        // Filter transfers from the craft account
+        const relevantTransfers = response.data.transfers.filter(t => 
+          t.senderRS === CRAFT_ACCOUNT || t.sender === CRAFT_ACCOUNT_ID
+        );
+        
+        allTransfers.push(...relevantTransfers);
+        
+        // If we got fewer transfers than requested, we've reached the end
+        if (response.data.transfers.length < batchSize) {
+          hasMore = false;
+        } else {
+          firstIndex += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    return allTransfers;
+  } catch (error) {
+    logger.error(`Error getting transfers for asset ${assetId}`, error);
+    return [];
+  }
 }
 
 /**
@@ -58,14 +173,6 @@ async function getCraftings(forceRefresh = false) {
     const cachedData = readJSON('ardor_craftings');
     if (cachedData && !forceRefresh) {
       logger.info(`Using cached craft data with ${cachedData.count} entries`);
-      
-      // Log some sample data to verify structure
-      if (cachedData.craftings && cachedData.craftings.length > 0) {
-        logger.debug(`Sample cached crafting: ${JSON.stringify(cachedData.craftings[0])}`);
-      } else {
-        logger.debug(`Cache exists but contains no entries - this is the issue!`);
-      }
-      
       return cachedData;
     }
     
@@ -78,54 +185,100 @@ async function getCraftings(forceRefresh = false) {
       timestamp: new Date().toISOString()
     };
     
-    // Use June 2023 as the cutoff date
-    const cutoffTimestamp = Math.floor((JUNE_2023_TIMESTAMP - ARDOR_EPOCH) / 1000);
-    
-    logger.info(`Using cutoff date: ${new Date(cutoffTimestamp * 1000).toISOString()}`);
-    
     // Asset info cache to avoid repeated API calls
     const assetInfoCache = {};
     
-    // Fetch transfers in batches
-    const batchSize = 100;
-    let firstIndex = 0;
-    let hasMoreTransfers = true;
+    // Get all assets issued by the craft account
+    logger.info(`Getting assets issued by craft account ${CRAFT_ACCOUNT}`);
+    const assetIds = await getAccountAssets(CRAFT_ACCOUNT);
+    logger.info(`Found ${assetIds.length} assets issued by craft account`);
+    
     let processedCount = 0;
     let foundCraftings = 0;
+    let assetIndex = 0;
+    const totalAssets = assetIds.length;
     
-    while (hasMoreTransfers) {
-      const lastIndex = firstIndex + batchSize - 1;
-      logger.info(`Fetching transfers batch ${firstIndex}-${lastIndex}`);
+    // Process each asset
+    for (const assetId of assetIds) {
+      assetIndex++;
+      logger.info(`Processing asset ${assetId} (${assetIndex}/${totalAssets})`);
       
-      const transfers = await getAssetTransfersBatch(firstIndex, lastIndex);
+      // Get all transfers for this asset
+      const transfers = await getAllAssetTransfers(assetId);
+      logger.info(`Found ${transfers.length} transfers for asset ${assetId}`);
       
-      // No more transfers to process
       if (transfers.length === 0) {
-        hasMoreTransfers = false;
-        logger.info('No more transfers found');
-        break;
+        continue;
       }
       
-      // Filter transfers after cutoff date
-      const recentTransfers = transfers.filter(t => {
-        const normalizedTs = normalizeTimestamp(t.timestamp);
-        return normalizedTs >= cutoffTimestamp;
-      });
-      
-      logger.info(`Processing ${recentTransfers.length} transfers after cutoff date`);
-      
       // Process each transfer
-      for (const transfer of recentTransfers) {
+      for (const transfer of transfers) {
         processedCount++;
         
         try {
-          const craftOperation = await processTransfer(transfer, assetInfoCache);
+          // For each transfer, fetch the full transaction with prunable messages
+          const fullHash = transfer.assetTransferFullHash || transfer.fullHash || transfer.transaction;
           
-          if (craftOperation) {
-            result.craftings.push(craftOperation);
-            foundCraftings++;
-            logger.info(`Found craft operation: ${craftOperation.cardName} by ${craftOperation.recipient}`);
+          if (!fullHash) {
+            logger.debug('Transfer missing fullHash, skipping');
+            continue;
           }
+          
+          // Get the full transaction with prunable message
+          const transaction = await getTransactionWithPrunable(fullHash);
+          
+          if (!transaction) {
+            logger.debug(`No transaction data returned for hash ${fullHash}`);
+            continue;
+          }
+          
+          // Check if this is a craft operation
+          const craftDetails = extractCraftDetails(transaction);
+          
+          if (!craftDetails) {
+            logger.debug(`Transfer ${fullHash} is not a craft operation`);
+            continue;
+          }
+          
+          logger.debug(`Found craft operation: ${JSON.stringify(craftDetails)}`);
+          
+          // Get asset info if not already cached
+          if (!assetInfoCache[assetId]) {
+            logger.debug(`Fetching asset info for ${assetId}`);
+            assetInfoCache[assetId] = await getAssetInfo(assetId);
+          }
+          
+          const assetInfo = assetInfoCache[assetId] || {
+            assetId,
+            name: `Asset ${assetId}`,
+            cardName: `Unknown (${assetId})`,
+            cardRarity: 'unknown',
+            cardType: 'unknown'
+          };
+          
+          const normalizedTimestamp = normalizeTimestamp(transfer.timestamp);
+          
+          // Add this craft operation to our results
+          const craftOperation = {
+            id: fullHash,
+            timestamp: normalizedTimestamp,
+            date: ardorTimestampToDate(normalizedTimestamp).toISOString(),
+            timestampISO: ardorTimestampToDate(normalizedTimestamp).toISOString(),
+            recipient: transfer.recipientRS,
+            assetId,
+            assetName: assetInfo.name,
+            cardName: assetInfo.cardName,
+            cardRarity: assetInfo.cardRarity,
+            cardType: assetInfo.cardType,
+            cardsUsed: craftDetails.cardsUsed,
+            fullHash,
+            details: craftDetails
+          };
+          
+          result.craftings.push(craftOperation);
+          foundCraftings++;
+          
+          logger.info(`Found craft operation: ${craftOperation.cardName} by ${craftOperation.recipient}`);
           
           // Log progress periodically
           if (processedCount % 10 === 0) {
@@ -135,16 +288,6 @@ async function getCraftings(forceRefresh = false) {
           logger.error(`Error processing transfer ${transfer.fullHash || 'unknown'}`, error);
         }
       }
-      
-      // Check if this batch was smaller than requested (reached the end)
-      if (transfers.length < batchSize) {
-        hasMoreTransfers = false;
-        logger.info('Reached end of transfers');
-        break;
-      }
-      
-      // Move to next batch
-      firstIndex += batchSize;
     }
     
     // Sort by timestamp (newest first)
@@ -154,7 +297,7 @@ async function getCraftings(forceRefresh = false) {
     result.craftings = result.craftings.filter(craft => craft.assetId !== GEM_ASSET_ID);
     result.count = result.craftings.length;
     
-    logger.info(`Found ${result.count} craft operations in total (after filtering GEM tokens)`);
+    logger.info(`Found ${result.count} craft operations in total`);
     
     // If we found some craft operations, cache the result
     if (result.count > 0) {
@@ -163,10 +306,7 @@ async function getCraftings(forceRefresh = false) {
       logger.info('Cached craft operations to file');
     } else {
       logger.info('No craft operations found to cache');
-      
-      // Write an empty cache to avoid repeated API calls
       writeJSON('ardor_craftings', result);
-      logger.info('Cached empty craft operations to file');
     }
     
     return result;
@@ -182,12 +322,5 @@ async function getCraftings(forceRefresh = false) {
     };
   }
 }
-
-// Call the function to gather the info from the logs
-getCraftings(true).then(result => {
-  console.log('Crafting data:', result);
-}).catch(error => {
-  console.error('Error fetching crafting data:', error);
-});
 
 module.exports = { getCraftings };
