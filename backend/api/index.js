@@ -13,18 +13,20 @@ const ardorRoutes = require('./ardorRoutes');
 const polygonRoutes = require('./polygonRoutes');
 const cacheRoutes = require('./cacheRoutes');
 const craftsRouter = require('./crafts');
-const tradesRouter = require('./trades');  // Add this line
-const burnsRouter = require('./burns');    // Add this line
-const usersRouter = require('./users');    // Add this line
+const tradesRouter = require('./trades');
+const burnsRouter = require('./burns');
+const usersRouter = require('./users');
+const morphsRouter = require('./morphs'); // Add this line
 
 // Register routes
 router.use('/ardor', ardorRoutes);
 router.use('/polygon', polygonRoutes);
 router.use('/cache', cacheRoutes);
 router.use('/crafts', craftsRouter);
-router.use('/trades', tradesRouter);  // Add this line
-router.use('/burns', burnsRouter);    // Add this line
-router.use('/users', usersRouter);    // Add this line
+router.use('/trades', tradesRouter);
+router.use('/burns', burnsRouter);
+router.use('/users', usersRouter);
+router.use('/morphs', morphsRouter); // Add this line
 
 // Add a simple ping test endpoint
 router.get('/ping', (req, res) => {

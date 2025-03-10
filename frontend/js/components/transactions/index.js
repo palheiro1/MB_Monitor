@@ -33,12 +33,21 @@ export function initTransactionComponents() {
  * Also handles finding and highlighting new transactions
  */
 export function renderAllCardsWithAnimation() {
+  console.log('renderAllCardsWithAnimation called');
+  
   const tradesData = getState('currentData.tradesData') || {};
   const giftzData = getState('currentData.giftzData') || {};
   const craftsData = getState('currentData.craftsData') || {};
   const morphsData = getState('currentData.morphsData') || {};
   const burnsData = getState('currentData.burnsData') || {};
   const usersData = getState('currentData.usersData') || {};
+  
+  console.log('Data available for rendering:', {
+    ardorTrades: tradesData.ardor_trades?.length || 0,
+    morphs: morphsData.morphs?.length || 0,
+    crafts: craftsData.crafts?.length || 0,
+    burns: burnsData.burns?.length || 0
+  });
   
   // Previous data for comparison
   const prevData = getState('previousData') || {};
@@ -84,54 +93,69 @@ export function renderAllCardsWithAnimation() {
     usersData.polygon_users || []
   );
   
+  // Log container elements
+  const containers = {
+    ardorTrades: document.getElementById('ardor-trades-cards'),
+    morphs: document.getElementById('morphs-cards'),
+    crafts: document.getElementById('crafts-cards'),
+    burns: document.getElementById('burns-cards')
+  };
+  
+  console.log('Container elements found:', {
+    ardorTrades: !!containers.ardorTrades,
+    morphs: !!containers.morphs,
+    crafts: !!containers.crafts,
+    burns: !!containers.burns
+  });
+  
   // Render each type of transaction cards
   renderTradeCards(
     tradesData.ardor_trades || [], 
-    getElement('ardorTradesCards'), 
+    getElement('ardor-trades-cards'), // Fix: Use hyphenated ID to match HTML
     newArdorTrades
   );
   
   // Use the specialized Polygon renderer for Polygon trades
   renderPolygonTradeCards(
     tradesData.polygon_trades || [], 
-    getElement('polygonTradesCards'), 
+    getElement('polygon-trades-cards'), // Fix: Use hyphenated ID to match HTML
     newPolygonTrades
   );
   
   renderGiftzCards(
     giftzData.sales || [], 
-    getElement('giftzCards'), 
+    getElement('giftz-cards'), // Fix: Use hyphenated ID to match HTML
     newGiftzSales
   );
   
   renderCraftCards(
     craftsData.crafts || [], 
-    getElement('craftsCards'), 
+    getElement('crafts-cards'), // Fix: Use hyphenated ID to match HTML
     newCrafts
   );
   
   renderMorphCards(
     morphsData.morphs || [], 
-    getElement('morphsCards'), 
+    getElement('morphs-cards'), // Fix: Use hyphenated ID to match HTML
     newMorphs
   );
   
   renderBurnCards(
     burnsData.burns || [], 
-    getElement('burnsCards'), 
+    getElement('burns-cards'), // Fix: Use hyphenated ID to match HTML
     newBurns
   );
   
   renderUserCards(
     usersData.ardor_users || [], 
-    getElement('ardorUsersCards'), 
+    getElement('ardor-users-cards'), // Fix: Use hyphenated ID to match HTML
     newUsers
   );
   
   // Use the specialized Polygon renderer for Polygon users
   renderPolygonUserCards(
     usersData.polygon_users || [], 
-    getElement('polygonUsersCards'), 
+    getElement('polygon-users-cards'), // Fix: Use hyphenated ID to match HTML
     newPolygonUsers
   );
   
@@ -166,49 +190,49 @@ export function renderAllCards() {
   // Render each type of transaction cards without animations
   renderTradeCards(
     tradesData.ardor_trades || [], 
-    getElement('ardorTradesCards'), 
+    getElement('ardor-trades-cards'), // Fix: Use hyphenated ID to match HTML
     []
   );
   
   renderPolygonTradeCards(
     tradesData.polygon_trades || [], 
-    getElement('polygonTradesCards'), 
+    getElement('polygon-trades-cards'), // Fix: Use hyphenated ID to match HTML
     []
   );
   
   renderGiftzCards(
     giftzData.sales || [], 
-    getElement('giftzCards'), 
+    getElement('giftz-cards'), // Fix: Use hyphenated ID to match HTML
     []
   );
   
   renderCraftCards(
     craftsData.crafts || [], 
-    getElement('craftsCards'), 
+    getElement('crafts-cards'), // Fix: Use hyphenated ID to match HTML
     []
   );
   
   renderMorphCards(
     morphsData.morphs || [], 
-    getElement('morphsCards'), 
+    getElement('morphs-cards'), // Fix: Use hyphenated ID to match HTML
     []
   );
   
   renderBurnCards(
     burnsData.burns || [], 
-    getElement('burnsCards'), 
+    getElement('burns-cards'), // Fix: Use hyphenated ID to match HTML
     []
   );
   
   renderUserCards(
     usersData.ardor_users || [], 
-    getElement('ardorUsersCards'), 
+    getElement('ardor-users-cards'), // Fix: Use hyphenated ID to match HTML
     []
   );
   
   renderPolygonUserCards(
     usersData.polygon_users || [], 
-    getElement('polygonUsersCards'), 
+    getElement('polygon-users-cards'), // Fix: Use hyphenated ID to match HTML
     []
   );
 }

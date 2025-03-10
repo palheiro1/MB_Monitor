@@ -133,5 +133,12 @@ export const userApi = {
   getActiveUsers: (period = '30d') => apiRequest(`users?period=${period}`)
 };
 
+/**
+ * Morphing-related API calls
+ */
+export const morphApi = {
+  getAll: (period = '30d') => apiRequest(`morphs?period=${period}`)
+};
+
 // Export the raw request function for advanced use cases
 export { apiRequest };

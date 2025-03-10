@@ -1,168 +1,124 @@
 /**
  * Data Manager
  * 
- * Centralized data fetching and state management.
- * Coordinates API requests and updates application state.
+ * Handles loading data from the API and updating the UI
  */
 
-import { tradeApi, craftApi, burnApi, cacheApi, userApi } from '../api/index.js';
-import { setState, getState, savePreviousData } from '../state/index.js';
-import { showNotification } from '../components/notifications.js';
+import { getState, setState } from '../state/index.js';
+import { updateStats } from '../components/statistics.js';
+import { renderAllCardsWithAnimation } from '../components/transactions/index.js';
+import { updateLastUpdateTimestamp, hideLoading } from '../components/ui-manager.js';
 
-// Event system for data updates
-const dataEvents = new EventTarget();
+// API endpoints
+const API_BASE = '/api'; // Default base URL
 
 /**
- * Fetch all data from APIs
- * @param {boolean} showLoading - Whether to show loading indicators
- * @returns {Promise<boolean>} Success status
+ * Fetch all data from the API
+ * @param {boolean} showLoading - Whether to show loading indicator
+ * @returns {Promise<Object>} Combined data from all endpoints
  */
 export async function fetchAllData(showLoading = true) {
   try {
-    if (showLoading) {
-      // Dispatch loading event
-      dataEvents.dispatchEvent(new CustomEvent('data-loading'));
+    const period = getState('currentPeriod') || '30d';
+    console.log(`Fetching all data for period: ${period}`);
+    
+    // Store current data as previous for comparison
+    const currentData = getState('currentData');
+    if (currentData) {
+      setState('previousData', currentData);
     }
     
-    // Save current data for comparison
-    savePreviousData();
-    
-    // Add error handling timeouts and better logging
-    const options = { 
-      timeout: 10000 // 10 second timeout for each request
-    };
-    
-    // Fetch all data in parallel with reasonable timeouts
-    const [trades, crafts, burns, users, cacheStatus] = await Promise.allSettled([
-      fetchWithErrorHandling(() => tradeApi.getAll(getState('currentPeriod')), 'trades'),
-      fetchWithErrorHandling(() => craftApi.getAll(getState('currentPeriod')), 'crafts'),
-      fetchWithErrorHandling(() => burnApi.getAll(getState('currentPeriod')), 'burns'),
-      fetchWithErrorHandling(() => userApi.getActiveUsers(getState('currentPeriod')), 'users'),
-      fetchWithErrorHandling(() => cacheApi.getStatus(), 'cache')
+    // Fetch all data in parallel
+    const [tradesData, craftsData, morphsData, burnsData, usersData, giftzData] = await Promise.all([
+      fetchEndpoint(`/trades?period=${period}`),
+      fetchEndpoint(`/crafts?period=${period}`),
+      fetchEndpoint(`/morphs?period=${period}`),
+      fetchEndpoint(`/burns?period=${period}`),
+      fetchEndpoint(`/users?period=${period}`),
+      fetchEndpoint(`/giftz?period=${period}`)
     ]);
     
-    // Store results in state, handling potential rejections
-    updateStateFromResult('currentData.tradesData', trades);
-    updateStateFromResult('currentData.craftsData', crafts);
-    updateStateFromResult('currentData.burnsData', burns);
-    updateStateFromResult('currentData.usersData', users);
-    updateStateFromResult('currentData.cacheData', cacheStatus);
+    // Combine into a single data object
+    const allData = {
+      tradesData,
+      craftsData,
+      morphsData,
+      burnsData,
+      usersData,
+      giftzData,
+      timestamp: new Date().toISOString()
+    };
     
-    // Update last fetch timestamp
-    setState('lastUpdate', new Date().toISOString());
+    // Update state and UI
+    setState('currentData', allData);
     
-    // Dispatch data loaded event
-    dataEvents.dispatchEvent(new CustomEvent('data-loaded', {
-      detail: {
-        trades: trades.status === 'fulfilled',
-        crafts: crafts.status === 'fulfilled',
-        burns: burns.status === 'fulfilled',
-        users: users.status === 'fulfilled',
-        cacheStatus: cacheStatus.status === 'fulfilled'
-      }
-    }));
+    // Update stats and UI
+    updateStats(allData);
     
-    return true;
+    // Only call these functions if they exist
+    if (typeof renderAllCardsWithAnimation === 'function') {
+      renderAllCardsWithAnimation();
+    }
+    
+    if (typeof updateLastUpdateTimestamp === 'function') {
+      updateLastUpdateTimestamp();
+    }
+    
+    // Hide loading indicator if applicable
+    if (showLoading && typeof hideLoading === 'function') {
+      hideLoading();
+    }
+    
+    return allData;
   } catch (error) {
     console.error('Error fetching data:', error);
-    showNotification('Error', 'Failed to fetch data from server', 'error');
-    
-    // Dispatch error event
-    dataEvents.dispatchEvent(new CustomEvent('data-error', {
-      detail: { error }
-    }));
-    
-    return false;
-  } finally {
-    if (showLoading) {
-      // Dispatch loading finished event
-      dataEvents.dispatchEvent(new CustomEvent('data-loading-finished'));
+    if (showLoading && typeof hideLoading === 'function') {
+      hideLoading();
     }
+    return {};
   }
 }
 
 /**
- * Helper to update state from Promise result
- * @param {string} statePath - Path in state to update
- * @param {PromiseSettledResult} result - Promise result
+ * Fetch data from an API endpoint
+ * @param {string} endpoint - API endpoint path
+ * @returns {Promise<Object>} Response data
  */
-function updateStateFromResult(statePath, result) {
-  if (result.status === 'fulfilled') {
-    setState(statePath, result.value);
-  } else {
-    console.error(`Error fetching ${statePath}:`, result.reason);
-  }
-}
-
-/**
- * Helper to fetch with better error handling
- * @param {Function} fetchFn - Function that returns a promise
- * @param {string} entityName - Name of entity being fetched for logging
- * @returns {Promise} Resolved promise with data or error
- */
-async function fetchWithErrorHandling(fetchFn, entityName) {
+async function fetchEndpoint(endpoint) {
   try {
-    console.log(`Fetching ${entityName} data...`);
-    const result = await fetchFn();
-    console.log(`Successfully fetched ${entityName} data`);
-    return result;
-  } catch (error) {
-    console.error(`Error fetching ${entityName} data:`, error);
-    if (error.message.includes('HTML') || error.message.includes('Invalid JSON')) {
-      console.warn(`Received HTML instead of JSON for ${entityName} - check API routes`);
+    const response = await fetch(`${API_BASE}${endpoint}`);
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
     }
-    throw error;
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching from ${endpoint}:`, error);
+    return {};
   }
 }
 
 /**
- * Subscribe to data events
- * @param {string} event - Event name ('data-loading', 'data-loaded', 'data-error', 'data-loading-finished')
- * @param {Function} callback - Callback function
+ * Refresh specific data endpoint
+ * @param {string} endpoint - Endpoint to refresh
+ * @param {string} stateKey - Key in state to update
  */
-export function onDataEvent(event, callback) {
-  dataEvents.addEventListener(event, callback);
-}
-
-/**
- * Unsubscribe from data events
- * @param {string} event - Event name
- * @param {Function} callback - Callback function to remove
- */
-export function offDataEvent(event, callback) {
-  dataEvents.removeEventListener(event, callback);
-}
-
-// Individual data fetching functions
-export async function fetchTrades() {
+export async function refreshEndpoint(endpoint, stateKey) {
   try {
-    const data = await tradeApi.getAll(getState('currentPeriod'));
-    setState('currentData.tradesData', data);
-    return data;
+    const period = getState('currentPeriod') || '30d';
+    const data = await fetchEndpoint(`/${endpoint}?period=${period}&refresh=true`);
+    
+    // Update just this part of the state
+    const currentData = getState('currentData') || {};
+    setState('currentData', {
+      ...currentData,
+      [stateKey]: data
+    });
+    
+    // Update UI for just this component
+    updateStats(getState('currentData'));
   } catch (error) {
-    console.error('Error fetching trades:', error);
-    return null;
-  }
-}
-
-export async function fetchCrafts() {
-  try {
-    const data = await craftApi.getAll(getState('currentPeriod'));
-    setState('currentData.craftsData', data);
-    return data;
-  } catch (error) {
-    console.error('Error fetching crafts:', error);
-    return null;
-  }
-}
-
-export async function fetchBurns() {
-  try {
-    const data = await burnApi.getAll(getState('currentPeriod'));
-    setState('currentData.burnsData', data);
-    return data;
-  } catch (error) {
-    console.error('Error fetching burns:', error);
-    return null;
+    console.error(`Error refreshing ${endpoint}:`, error);
   }
 }

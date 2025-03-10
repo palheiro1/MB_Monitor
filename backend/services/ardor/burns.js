@@ -95,13 +95,9 @@ function processBurn(burn, assetInfo) {
  */
 async function getCardBurns(forceRefresh = false) {
   try {
-    console.log('Fetching Ardor card burns...');
-    console.log(`Using burn account: ${ARDOR_BURN_ACCOUNT} on chain: ${ARDOR_CHAIN_ID} (IGNIS)`);
-    
     // Clear cache if forced refresh
     const cacheFile = path.join(__dirname, '../../storage/ardor_card_burns.json');
     if (forceRefresh && fs.existsSync(cacheFile)) {
-      console.log('Forcing cache refresh');
       fs.unlinkSync(cacheFile);
     }
     
@@ -112,7 +108,6 @@ async function getCardBurns(forceRefresh = false) {
     }
     
     const burnStartTimestampArdor = getBurnStartTimestamp();
-    console.log(`Burn start timestamp (Ardor epoch): ${burnStartTimestampArdor}`);
     
     // Get all tracked assets
     const trackedAssets = await getTrackedAssets();
@@ -127,8 +122,6 @@ async function getCardBurns(forceRefresh = false) {
         regularCardAssetIds = trackedAssets.regularCards.map(asset => asset.asset);
       }
     }
-    
-    console.log(`Checking ${regularCardAssetIds.length} regular card assets for burns`);
     
     // Initialize result
     const result = {
@@ -165,8 +158,6 @@ async function getCardBurns(forceRefresh = false) {
           const isAfterStartDate = transferTime >= burnStartTimestampArdor;
           const isToBurnAccount = transfer.recipientRS === ARDOR_BURN_ACCOUNT;
           
-          // We expect all transfers to be to burn account since we filtered in the API
-          // but we check again for safety
           return isAfterStartDate && isToBurnAccount;
         });
         
@@ -201,7 +192,6 @@ async function getCardBurns(forceRefresh = false) {
     
     // Update count
     result.count = result.burns.length;
-    console.log(`Found ${result.count} card burns in total`);
     
     // Final safety check to make sure all transfers are to burn account
     const nonBurnTransfers = result.burns.filter(burn => burn.recipientRS !== ARDOR_BURN_ACCOUNT);
@@ -211,8 +201,6 @@ async function getCardBurns(forceRefresh = false) {
       // Remove non-burn transfers
       result.burns = result.burns.filter(burn => burn.recipientRS === ARDOR_BURN_ACCOUNT);
       result.count = result.burns.length;
-      
-      console.log(`After filtering, ${result.count} burn transfers remain`);
     }
     
     // Save to JSON file
@@ -232,13 +220,9 @@ async function getCardBurns(forceRefresh = false) {
  */
 async function getGEMBurns(forceRefresh = true) { // Force refresh by default
   try {
-    console.log('Fetching Ardor GEM burns...');
-    console.log(`Using burn account: ${ARDOR_BURN_ACCOUNT} and GEM asset ID: ${GEM_ASSET_ID} on chain: ${ARDOR_CHAIN_ID} (IGNIS)`);
-    
     // Clear cache if forced refresh
     const cacheFile = path.join(__dirname, '../../storage/ardor_gem_burns.json');
     if (forceRefresh && fs.existsSync(cacheFile)) {
-      console.log('Forcing cache refresh');
       fs.unlinkSync(cacheFile);
     }
     
@@ -248,9 +232,6 @@ async function getGEMBurns(forceRefresh = true) { // Force refresh by default
     }
     
     const burnStartTimestampArdor = getBurnStartTimestamp();
-    console.log(`Current date: ${new Date().toISOString()}`);
-    console.log(`Burn start date: ${BURN_START_DATE}`);
-    console.log(`Burn start timestamp (Ardor epoch): ${burnStartTimestampArdor}`);
     
     // Initialize result
     const result = {
@@ -262,7 +243,6 @@ async function getGEMBurns(forceRefresh = true) { // Force refresh by default
     
     // Get GEM token info first
     const assetInfo = await getAssetInfo(GEM_ASSET_ID);
-    console.log(`Fetching transfers for GEM token (${GEM_ASSET_ID}) with name: ${assetInfo.name}`);
     
     // Use IGNIS chain (2) and get transfers to burn account
     const response = await axios.get(ARDOR_API_URL, {
@@ -277,18 +257,11 @@ async function getGEMBurns(forceRefresh = true) { // Force refresh by default
     });
     
     if (!response.data || !response.data.transfers || !response.data.transfers.length) {
-      console.log('No GEM transfers found to burn account');
       writeJSON('ardor_gem_burns', result);
       return result;
     }
     
     const allTransfers = response.data.transfers;
-    console.log(`Found ${allTransfers.length} GEM transfers to burn account`);
-    
-    // Log some details of first few transfers for debugging
-    allTransfers.slice(0, 3).forEach((t, i) => {
-      console.log(`Transfer ${i+1}: ID=${t.fullHash?.substring(0,8) || 'unknown'}, Date=${ardorTimestampToDate(parseInt(t.timestamp))}, Recipient=${t.recipientRS}`);
-    });
     
     // Double-check that transfers are to the burn account AND after the start date
     const gemBurns = allTransfers.filter(transfer => {
@@ -298,14 +271,8 @@ async function getGEMBurns(forceRefresh = true) { // Force refresh by default
       const isAfterStartDate = transferTime >= burnStartTimestampArdor;
       const isToBurnAccount = transfer.recipientRS === ARDOR_BURN_ACCOUNT;
       
-      if (!isAfterStartDate) {
-        console.log(`Transfer ${transfer.fullHash?.substring(0,8) || 'unknown'} is before start date: ${ardorTimestampToDate(transferTime)}`);
-      }
-      
       return isAfterStartDate && isToBurnAccount;
     });
-    
-    console.log(`Found ${gemBurns.length} GEM burns after start date`);
     
     if (gemBurns.length > 0) {
       // Add asset info to each transfer
@@ -336,8 +303,6 @@ async function getGEMBurns(forceRefresh = true) { // Force refresh by default
       );
     }
     
-    console.log(`Found ${result.count} total GEM transfers to burn account with total ${result.totalAmount} GEM burned`);
-    
     // Save to JSON file
     writeJSON('ardor_gem_burns', result);
     
@@ -348,44 +313,4 @@ async function getGEMBurns(forceRefresh = true) { // Force refresh by default
   }
 }
 
-/**
- * Get burns for a given period
- * @param {string} period - Time period (e.g., '24h', '7d', '30d', 'all')
- * @param {boolean} forceRefresh - Force refresh of cache
- * @returns {Promise<Object>} - Burns data
- */
-async function getBurns(period = 'all', forceRefresh = false) {
-  try {
-    // Check for cached data
-    const cachedData = readJSON('ardor_gem_burns');
-    
-    if (!forceRefresh && cachedData) {
-      console.log(`Using cached burns data with ${cachedData.count} entries`);
-      return cachedData;
-    }
-    
-    console.log('Fetching burn data - no cache or refresh forced');
-    
-    // No period filtering - fetch and return all burns
-    const burns = await fetchAllBurns();
-    
-    const data = {
-      burns: burns,
-      count: burns.length,
-      totalAmount: calculateTotalGemsBurned(burns),
-      timestamp: new Date().toISOString()
-    };
-    
-    // Cache the data
-    writeJSON('ardor_gem_burns', data);
-    console.log(`Cached ${burns.length} burns to file`);
-    
-    return data;
-  } catch (error) {
-    console.error('Error in getBurns:', error);
-    throw error;
-  }
-}
-
-// Module exports
 module.exports = { getCardBurns, getGEMBurns };

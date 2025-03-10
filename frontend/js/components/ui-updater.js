@@ -1,133 +1,119 @@
 /**
  * UI Updater
  * 
- * Connects UI components to data updates.
- * Handles rendering when data changes.
+ * Handles automatic UI updates based on data changes
  */
 
-import { onDataEvent } from '../data-manager/index.js';
-import { getState } from '../state/index.js';
-import { showLoading, hideLoading, updateStatusBadge } from './ui-manager.js';
-import { renderTradeCards } from './transactions/trades.js';
-import { renderCraftCards } from './transactions/crafts.js';
-import { renderBurnCards } from './transactions/burns.js';
-import { renderCacheTable } from './cache-table.js';
-import { updateCharts } from './charts.js';
-import { checkForNewActivity } from './activity-monitor.js';
+import { getState, setState } from '../state/index.js';
+import { updateStats } from './statistics.js';
+import { renderAllCards } from './transactions/index.js';
+import { fetchAllData } from '../data-manager/index.js';
+import { hideLoading, showLoading, updateLastUpdateTimestamp, updateStatusBadge } from './ui-manager.js';
 
 /**
- * Initialize UI updater
- * Connects data events to UI rendering functions
+ * Initialize the UI updater
+ * Sets up event listeners for data changes
  */
 export function initUIUpdater() {
-  // Handle loading events
-  onDataEvent('data-loading', () => {
-    showLoading();
-    updateStatusBadge('loading');
-  });
+  console.log('Initializing UI updater...');
   
-  onDataEvent('data-loading-finished', () => {
-    hideLoading();
-  });
+  // Listen for period change events
+  document.addEventListener('period-changed', handlePeriodChanged);
   
-  // Handle data loaded event
-  onDataEvent('data-loaded', (event) => {
-    // Update status badge
-    updateStatusBadge('success');
-    
-    // Update all UI components
-    updateAllComponents();
-    
-    // Check for new activity
-    checkForNewActivity();
-    
-    // Update last update time in UI
-    updateLastUpdateTime();
-  });
+  // Listen for refresh button clicks
+  document.addEventListener('refresh-requested', handleRefreshRequested);
   
-  // Handle data error event
-  onDataEvent('data-error', (event) => {
-    updateStatusBadge('error');
-    hideLoading();
-  });
+  // Listen for search changes
+  document.addEventListener('search-changed', handleSearchChanged);
+  
+  // Listen for sort changes
+  document.addEventListener('sort-changed', handleSortChanged);
   
   console.log('UI updater initialized');
 }
 
 /**
- * Update all UI components with current data
+ * Handle period change event
+ * @param {CustomEvent} event - The period change event
  */
-export function updateAllComponents() {
-  // Get container elements
-  const tradeCardsElement = document.getElementById('ardor-trades-cards');
-  const craftCardsElement = document.getElementById('crafts-cards');
-  const burnCardsElement = document.getElementById('burns-cards');
+function handlePeriodChanged(event) {
+  const period = event.detail.period;
+  console.log(`Period changed to: ${period}`);
   
-  // Get current data
-  const tradesData = getState('currentData.tradesData');
-  const craftsData = getState('currentData.craftsData');
-  const burnsData = getState('currentData.burnsData');
+  // Update state
+  setState('currentPeriod', period);
   
-  // Render cards if containers exist
-  if (tradeCardsElement && tradesData?.ardor_trades) {
-    renderTradeCards(tradesData.ardor_trades, tradeCardsElement);
-  }
+  // Show loading indicator
+  showLoading();
   
-  if (craftCardsElement && craftsData?.craftings) {
-    renderCraftCards(craftCardsElement, craftsData.craftings);
-  }
+  // Update status
+  updateStatusBadge('loading');
   
-  if (burnCardsElement && burnsData?.burns) {
-    renderBurnCards(burnCardsElement, burnsData.burns);
-  }
-  
-  // Update cache table
-  renderCacheTable();
-  
-  // Update charts with new data
-  updateCharts();
-  
-  // Update summary counters
-  updateCounters();
+  // Fetch new data
+  fetchAllData(true)
+    .then(() => {
+      updateStatusBadge('success');
+    })
+    .catch(() => {
+      updateStatusBadge('error');
+    });
 }
 
 /**
- * Update summary counters in the UI
+ * Handle refresh button click
  */
-function updateCounters() {
-  const tradesData = getState('currentData.tradesData');
-  const craftsData = getState('currentData.craftsData');
-  const burnsData = getState('currentData.burnsData');
+function handleRefreshRequested() {
+  console.log('Refresh requested');
   
-  // Update trade counter
-  const tradeCounter = document.getElementById('total-trades');
-  if (tradeCounter && tradesData) {
-    const count = tradesData.count || (tradesData.ardor_trades?.length || 0);
-    tradeCounter.textContent = count.toLocaleString();
-  }
+  // Show loading indicator
+  showLoading();
   
-  // Update craft counter
-  const craftCounter = document.getElementById('card-crafts');
-  if (craftCounter && craftsData) {
-    const count = craftsData.count || (craftsData.craftings?.length || 0);
-    craftCounter.textContent = count.toLocaleString();
-  }
+  // Update status
+  updateStatusBadge('loading');
   
-  // Update burn counter
-  const burnCounter = document.getElementById('card-burns');
-  if (burnCounter && burnsData) {
-    const count = burnsData.count || (burnsData.burns?.length || 0);
-    burnCounter.textContent = count.toLocaleString();
-  }
+  // Fetch fresh data
+  fetchAllData(true)
+    .then(() => {
+      updateStatusBadge('success');
+    })
+    .catch(() => {
+      updateStatusBadge('error');
+    });
 }
 
 /**
- * Update the last update time display
+ * Handle search input change
+ * @param {CustomEvent} event - The search change event
  */
-function updateLastUpdateTime() {
-  const lastUpdateElement = document.getElementById('last-update');
-  if (lastUpdateElement) {
-    const now = new Date();
-    lastUpdateElement.textContent = now.toLocaleString();
-  }
+function handleSearchChanged(event) {
+  const query = event.detail.query;
+  console.log(`Search query changed: "${query}"`);
+  
+  // Update state
+  setState('searchQuery', query);
+  
+  // Re-render cards with current data and search filter
+  renderAllCards();
+}
+
+/**
+ * Handle sort direction change
+ * @param {CustomEvent} event - The sort change event
+ */
+function handleSortChanged(event) {
+  const direction = event.detail.direction;
+  console.log(`Sort direction changed to: ${direction}`);
+  
+  // Re-render cards with new sort
+  renderAllCards();
+}
+
+/**
+ * Update all UI components with new data
+ * @param {Object} data - The data to display
+ */
+export function updateUI(data) {
+  updateStats(data);
+  renderAllCards();
+  updateLastUpdateTimestamp();
 }

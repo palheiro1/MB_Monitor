@@ -14,8 +14,12 @@ const ARDOR_EPOCH = new Date("2018-01-01T00:00:00Z").getTime();
  */
 export function formatAddress(address) {
   if (!address) return 'Unknown';
-  if (address.length <= 14) return address;
-  return address.substring(0, 6) + '...' + address.substring(address.length - 6);
+  
+  // If it's already short, return as is
+  if (address.length < 15) return address;
+  
+  // Otherwise truncate
+  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 }
 
 /**
@@ -57,7 +61,7 @@ export function formatDate(date) {
  * @returns {string} Formatted date and time
  */
 export function formatDateTime(date) {
-  if (!date) return 'Unknown';
+  if (!date) return 'Unknown date';
   
   try {
     let dateObj;
@@ -75,11 +79,34 @@ export function formatDateTime(date) {
       dateObj = new Date(date);
     }
     
-    return `${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString()}`;
+    return dateObj.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   } catch (error) {
     console.error('Error formatting date time:', error);
     return 'Invalid Date';
   }
+}
+
+/**
+ * Format a number with commas as thousands separators
+ * 
+ * @param {number} number - Number to format
+ * @returns {string} Formatted number
+ */
+export function formatNumber(number) {
+  if (number === undefined || number === null) return '-';
+  
+  // Convert to number if it's a string
+  const value = typeof number === 'string' ? parseFloat(number) : number;
+  
+  // Check if it's a valid number
+  if (isNaN(value)) return '-';
+  
+  return new Intl.NumberFormat().format(value);
 }
 
 /**
@@ -89,7 +116,7 @@ export function formatDateTime(date) {
  * @returns {string} Time ago string
  */
 export function formatTimeAgo(date) {
-  if (!date) return 'Unknown';
+  if (!date) return 'some time ago';
   
   try {
     let past;
@@ -108,39 +135,26 @@ export function formatTimeAgo(date) {
     }
     
     const now = new Date();
-    const diffInSeconds = Math.floor((now - past) / 1000);
+    const secondsPast = Math.floor((now - past) / 1000);
     
-    if (diffInSeconds < 60) {
-      return `${diffInSeconds} second${diffInSeconds !== 1 ? 's' : ''} ago`;
+    if (secondsPast < 60) {
+      return 'just now';
+    }
+    if (secondsPast < 3600) {
+      return `${Math.floor(secondsPast / 60)} min ago`;
+    }
+    if (secondsPast < 86400) {
+      return `${Math.floor(secondsPast / 3600)} hrs ago`;
+    }
+    if (secondsPast < 604800) {
+      return `${Math.floor(secondsPast / 86400)} days ago`;
     }
     
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) {
-      return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`;
-    }
-    
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) {
-      return `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} ago`;
-    }
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays} day${diffInDays !== 1 ? 's' : ''} ago`;
+    return past.toLocaleDateString();
   } catch (error) {
     console.error('Error formatting time ago:', error);
     return 'Unknown time';
   }
-}
-
-/**
- * Format a number with commas as thousands separators
- * 
- * @param {number} number - Number to format
- * @returns {string} Formatted number
- */
-export function formatNumber(number) {
-  if (number === undefined || number === null) return '0';
-  return number.toLocaleString();
 }
 
 /**

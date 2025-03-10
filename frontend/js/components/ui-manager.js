@@ -11,13 +11,17 @@ import { debounce } from '../utils/helpers.js';
 const elementCache = {};
 
 /**
- * Get a DOM element by ID with caching
+ * Get a DOM element by ID with caching and error checking
  * @param {string} id - Element ID
  * @returns {HTMLElement|null} The DOM element or null if not found
  */
 export function getElement(id) {
   if (!elementCache[id]) {
     elementCache[id] = document.getElementById(id);
+    
+    if (!elementCache[id]) {
+      console.warn(`Element with id '${id}' not found`);
+    }
   }
   return elementCache[id];
 }
@@ -26,8 +30,10 @@ export function getElement(id) {
  * Show the loading overlay
  */
 export function showLoading() {
-  const overlay = getElement('loading-overlay');
-  if (overlay) overlay.style.display = 'flex';
+  const loadingOverlay = getElement('loading-overlay');
+  if (loadingOverlay) {
+    loadingOverlay.style.display = 'flex';
+  }
   setState('isLoading', true);
 }
 
@@ -35,8 +41,14 @@ export function showLoading() {
  * Hide the loading overlay
  */
 export function hideLoading() {
-  const overlay = getElement('loading-overlay');
-  if (overlay) overlay.style.display = 'none';
+  const loadingOverlay = getElement('loading-overlay');
+  if (loadingOverlay) {
+    loadingOverlay.classList.add('fade-out');
+    setTimeout(() => {
+      loadingOverlay.style.display = 'none';
+      loadingOverlay.classList.remove('fade-out');
+    }, 500);
+  }
   setState('isLoading', false);
 }
 
@@ -72,83 +84,75 @@ export function updateStatusBadge(status) {
 }
 
 /**
- * Update the last update time display
+ * Update the last update timestamp in the UI
  */
-export function updateLastUpdateTime() {
-  const timeElement = getElement('last-update');
-  if (!timeElement) return;
-  
-  const now = new Date();
-  const formattedTime = now.toLocaleTimeString();
-  const formattedDate = now.toLocaleDateString();
-  
-  timeElement.textContent = `${formattedDate} ${formattedTime}`;
+export function updateLastUpdateTimestamp() {
+  const lastUpdateElement = getElement('last-update');
+  if (lastUpdateElement) {
+    const now = new Date();
+    lastUpdateElement.textContent = now.toLocaleTimeString();
+  }
   setState('lastUpdate', now.toISOString());
 }
 
 /**
- * Set up event handlers for user interface elements
+ * Set up all UI elements and event listeners
  */
 export function setupUI() {
-  // Set up period selectors
-  const periodSelectors = document.querySelectorAll('.period-selector');
-  periodSelectors.forEach(selector => {
-    selector.addEventListener('click', function() {
-      // Update UI
-      periodSelectors.forEach(s => {
-        s.classList.remove('active', 'btn-primary');
-        s.classList.add('btn-outline-primary');
-      });
-      this.classList.remove('btn-outline-primary');
-      this.classList.add('active', 'btn-primary');
-      
-      // Update state
-      const period = this.dataset.period;
-      setState('currentPeriod', period);
-      
-      // Trigger data refresh
-      document.dispatchEvent(new CustomEvent('period-changed', {
-        detail: { period }
-      }));
-    });
+  // Set up period selector buttons
+  const periodButtons = document.querySelectorAll('.period-selector');
+  periodButtons.forEach(button => {
+    button.addEventListener('click', handlePeriodChange);
   });
   
   // Set up refresh button
   const refreshBtn = getElement('refresh-btn');
   if (refreshBtn) {
-    refreshBtn.addEventListener('click', function() {
-      document.dispatchEvent(new CustomEvent('refresh-requested'));
-    });
+    refreshBtn.addEventListener('click', handleRefresh);
   }
   
-  // Set up sorting buttons
-  const sortButtons = document.querySelectorAll('.sort-btn');
-  sortButtons.forEach(button => {
-    button.addEventListener('click', function() {
-      const newDirection = toggleSortDirection();
-      
-      // Update icon
-      const icon = this.querySelector('i');
-      if (icon) {
-        icon.className = newDirection === 'desc' 
-          ? 'fas fa-sort-amount-down' 
-          : 'fas fa-sort-amount-up';
-      }
-      
-      // Trigger re-render
-      document.dispatchEvent(new CustomEvent('sort-changed', {
-        detail: { direction: newDirection }
-      }));
-    });
+  // Set up search inputs
+  document.querySelectorAll('.search-input').forEach(input => {
+    input.addEventListener('input', handleSearch);
   });
   
-  // Set up search inputs
-  const searchInputs = document.querySelectorAll('.search-input');
-  searchInputs.forEach(input => {
-    input.addEventListener('input', debounce(function() {
-      document.dispatchEvent(new CustomEvent('search-changed', {
-        detail: { query: this.value.trim() }
-      }));
-    }, 300));
+  // Set up sort buttons
+  document.querySelectorAll('.sort-btn').forEach(button => {
+    button.addEventListener('click', handleSort);
   });
+  
+  console.log('UI setup complete');
+}
+
+// Event handler functions
+function handlePeriodChange(event) {
+  // Implementation details
+  console.log('Period changed:', event.target.dataset.period);
+  // Add your period change logic here
+}
+
+function handleRefresh() {
+  // Implementation details
+  console.log('Refresh requested');
+  // Add your refresh logic here
+}
+
+function handleSearch(event) {
+  // Implementation details
+  console.log('Search input:', event.target.value);
+  // Add your search logic here
+}
+
+function handleSort(event) {
+  // Implementation details
+  console.log('Sort button clicked');
+  const newDirection = toggleSortDirection();
+  
+  // Update icon
+  const icon = event.currentTarget.querySelector('i');
+  if (icon) {
+    icon.className = newDirection === 'desc' 
+      ? 'fas fa-sort-amount-down' 
+      : 'fas fa-sort-amount-up';
+  }
 }

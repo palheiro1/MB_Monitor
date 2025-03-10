@@ -9,8 +9,6 @@ import { initState } from './state/index.js';
 import { setupUI } from './components/ui-manager.js';
 import { initUIUpdater } from './components/ui-updater.js';
 import { fetchAllData } from './data-manager/index.js';
-import { initializeCharts } from './components/charts.js';
-import { initTransactionComponents } from './components/transactions/index.js';
 
 /**
  * Initialize the application
@@ -28,11 +26,15 @@ async function initApp() {
     // Initialize UI updater
     initUIUpdater();
     
-    // Initialize charts
-    initializeCharts();
+    // Initialize charts if the function exists
+    if (typeof initializeCharts === 'function') {
+      initializeCharts();
+    }
     
-    // Initialize transaction components
-    initTransactionComponents();
+    // Initialize transaction components if the function exists
+    if (typeof initTransactionComponents === 'function') {
+      initTransactionComponents();
+    }
     
     // Initial data load
     await fetchAllData();

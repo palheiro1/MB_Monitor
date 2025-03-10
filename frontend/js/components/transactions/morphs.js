@@ -15,10 +15,30 @@ import { formatAddress, formatDateTime } from '../../utils/formatters.js';
  * @param {Array} newItemIds - IDs of new items to animate
  */
 export function renderMorphCards(morphs, container, newItemIds = []) {
-  if (!container) return;
+  console.log('renderMorphCards called with:', { 
+    morphsCount: morphs?.length || 0, 
+    container: container?.id || 'missing', 
+    newItemIds 
+  });
+  
+  if (!container) {
+    console.error('Morph container not found!');
+    return;
+  }
+  
+  // Check if morphs data exists
+  if (!morphs || morphs.length === 0) {
+    console.log('No morphs data to display');
+    container.innerHTML = `
+      <div class="text-center p-4 text-muted">
+        No morphs found. Check that the backend is returning morphs data.
+      </div>
+    `;
+    return;
+  }
   
   // Get search term if any
-  const searchInput = container.closest('.tab-pane').querySelector('.search-input');
+  const searchInput = container.closest('.tab-pane')?.querySelector('.search-input');
   const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
   
   // Filter morphs based on search term

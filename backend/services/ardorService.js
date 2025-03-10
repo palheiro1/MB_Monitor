@@ -99,6 +99,11 @@ function init() {
   // Then fetch other data
   getAllData().catch(err => console.error('Initial Ardor cache update failed:', err.message));
 
+  // Add morphings to initial data fetch
+  getMorphings(false)
+    .then(result => console.log(`Initialized morphing cache with ${result.count} morphs`))
+    .catch(err => console.error('Failed to initialize morphings cache:', err.message));
+
   // Set up periodic cache updates
   setInterval(() => {
     getAllData().catch(err => console.error('Periodic Ardor cache update failed:', err.message));
@@ -106,6 +111,11 @@ function init() {
     if (Math.random() < 0.2) { // ~20% chance of refreshing trades on each cycle
       getTrades('all', true)
         .catch(err => console.error('Periodic trades cache update failed:', err.message));
+    }
+    // Add periodic morphing refresh (with similar frequency as trades)
+    if (Math.random() < 0.2) { // ~20% chance of refreshing morphings on each cycle
+      getMorphings(true)
+        .catch(err => console.error('Periodic morphings cache update failed:', err.message));
     }
   }, CACHE_TTL * 1000);
 

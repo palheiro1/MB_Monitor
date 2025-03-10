@@ -40,6 +40,10 @@ ardorService.getCardBurns().catch(err => console.error('Initial burn detection f
 console.log('Running initial trade detection...');
 ardorService.getTrades('all', true).catch(err => console.error('Initial trade detection failed:', err));
 
+// Add this with your other initializations - Fix: Changed from await to promise
+console.log('Running initial morphing detection...');
+ardorService.getMorphings(false).catch(err => console.error('Initial morphing detection failed:', err));
+
 // Fix: Move this catch-all route to AFTER all API routes
 // Frontend route - serve index.html
 app.get('*', (req, res, next) => {

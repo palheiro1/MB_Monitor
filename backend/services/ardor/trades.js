@@ -216,35 +216,25 @@ function calculateTradeStats(trades) {
  */
 async function getTrades(period = 'all', forceRefresh = false) {
   try {
-    console.log('Fetching Ardor trades...');
-    console.log(`Using period filter: ${period}, force refresh: ${forceRefresh ? 'yes' : 'no'}`);
-    
     // We only need one master cache file
     const masterCacheKey = 'ardor_trades';
     let masterCache = readJSON(masterCacheKey);
     
     // If period is 'all' and we're not forcing a refresh, we can directly use the master cache if it exists
     if (period === 'all' && !forceRefresh && masterCache) {
-      console.log(`Using existing master cache with ${masterCache.count} trades as period='all'`);
-      
       // Add period and stats information to the result
-      const result = {
+      return {
         ...masterCache,
         period: 'all',
         stats: calculateTradeStats(masterCache.ardor_trades),
         totalTradesInCache: masterCache.count
       };
-      
-      return result;
     }
     
     // Check if we need to fetch all trades first (either forced or no cache exists)
     if (!masterCache || forceRefresh) {
-      console.log('Main trade cache not found or refresh forced - fetching all trades...');
-      
       // Get tracked assets
       const trackedAssets = await getTrackedAssets();
-      console.log('Successfully fetched tracked assets');
       
       // Extract asset IDs for regular and special cards
       let regularCardAssetIds = [];
@@ -264,8 +254,6 @@ async function getTrades(period = 'all', forceRefresh = false) {
       // Include GIFTZ token
       const assetIds = [...regularCardAssetIds, ...specialCardAssetIds, GIFTZ_TOKEN_ID];
       
-      console.log(`Fetching trades for ${assetIds.length} assets (${regularCardAssetIds.length} regular cards, ${specialCardAssetIds.length} special cards, 1 GIFTZ token)`);
-      
       // Collect all trades (without period filtering)
       let allTrades = [];
       let processedAssets = 0;
@@ -274,23 +262,17 @@ async function getTrades(period = 'all', forceRefresh = false) {
       const batchSize = 10;
       for (let i = 0; i < assetIds.length; i += batchSize) {
         const batch = assetIds.slice(i, i + batchSize);
-        console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(assetIds.length/batchSize)}, assets: ${batch.join(', ').substring(0, 50)}...`);
         
         const batchResults = await Promise.all(batch.map(async (assetId) => {
           try {
             // Get trades for this asset - NO PERIOD FILTERING HERE
             const assetTrades = await getAssetTrades(assetId);
-            console.log(`Found ${assetTrades.length} raw trades for asset ${assetId}`);
             
             // Get asset info for proper display names
             const assetInfo = await getAssetInfo(assetId);
-            const assetName = assetInfo?.name || `Asset ${assetId}`;
             
             // Process trades without filtering by period
-            const processedTrades = assetTrades.map(trade => processTrade(trade, assetInfo));
-            
-            console.log(`Processed ${processedTrades.length} trades for ${assetName}`);
-            return processedTrades;
+            return assetTrades.map(trade => processTrade(trade, assetInfo));
           } catch (error) {
             console.error(`Error processing asset ${assetId}:`, error.message);
             return [];
@@ -298,45 +280,16 @@ async function getTrades(period = 'all', forceRefresh = false) {
         }));
         
         // Flatten batch results
-        let batchTradeCount = 0;
         batchResults.forEach(trades => {
-          batchTradeCount += trades.length;
           allTrades = [...allTrades, ...trades];
         });
         
         processedAssets += batch.length;
-        console.log(`Batch complete with ${batchTradeCount} trades, total so far: ${allTrades.length}`);
-        console.log(`Processed ${processedAssets}/${assetIds.length} assets...`);
       }
       
       // Check if we found any trades at all
       if (allTrades.length === 0) {
         console.warn('⚠️ WARNING: No trades found for any assets! This might indicate an API issue or data problem.');
-        
-        // Let's check a few assets individually as a diagnostic
-        if (assetIds.length > 0) {
-          console.log('Performing diagnostic checks on a few sample assets...');
-          const sampleAssets = assetIds.slice(0, 3);
-          
-          for (const assetId of sampleAssets) {
-            try {
-              console.log(`Diagnostic check for asset ${assetId}:`);
-              const response = await axios.get(ARDOR_API_URL, {
-                params: {
-                  requestType: 'getTrades',
-                  asset: assetId,
-                  chain: ARDOR_CHAIN_ID,
-                  firstIndex: 0,
-                  lastIndex: 10
-                }
-              });
-              
-              console.log(`API response for ${assetId}: ${JSON.stringify(response.data).substring(0, 200)}...`);
-            } catch (error) {
-              console.error(`Diagnostic API error for ${assetId}:`, error.message);
-            }
-          }
-        }
       }
       
       // Sort by timestamp (newest first)
@@ -351,9 +304,6 @@ async function getTrades(period = 'all', forceRefresh = false) {
       
       // Write the master cache
       writeJSON(masterCacheKey, masterCache);
-      console.log(`Master cache created with ${allTrades.length} total trades`);
-    } else {
-      console.log(`Using existing master cache with ${masterCache.count} trades`);
     }
     
     // Now filter the master cache based on the period parameter
@@ -362,7 +312,6 @@ async function getTrades(period = 'all', forceRefresh = false) {
     if (period === 'all') {
       // Return all trades from master cache
       filteredTrades = masterCache.ardor_trades;
-      console.log(`Returning all ${filteredTrades.length} trades from master cache`);
     } else {
       // Apply filtering based on period
       const periodTimestamp = getPeriodFilter(period);
@@ -370,15 +319,13 @@ async function getTrades(period = 'all', forceRefresh = false) {
       filteredTrades = masterCache.ardor_trades.filter(
         trade => trade.timestamp >= periodTimestamp
       );
-      
-      console.log(`Filtered to ${filteredTrades.length} trades for period ${period}`);
     }
     
     // Calculate statistics for the filtered trades
     const stats = calculateTradeStats(filteredTrades);
     
     // Prepare the result with filtered data
-    const result = {
+    return {
       ardor_trades: filteredTrades,
       count: filteredTrades.length,
       stats: stats,
@@ -386,13 +333,6 @@ async function getTrades(period = 'all', forceRefresh = false) {
       period: period,
       totalTradesInCache: masterCache.count
     };
-    
-    // No longer creating period-specific cache files
-    
-    console.log(`Returning ${filteredTrades.length} Ardor trades for period: ${period}`);
-    console.log('Trade statistics:', stats);
-    
-    return result;
   } catch (error) {
     console.error('Error fetching Ardor trades:', error.message);
     throw new Error(`Failed to fetch Ardor trades: ${error.message}`);
