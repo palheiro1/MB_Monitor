@@ -1,3 +1,7 @@
+/**
+ * Main API Router
+ * Registers all API routes
+ */
 const express = require('express');
 const router = express.Router();
 const ardorService = require('../services/ardorService');
@@ -8,13 +12,24 @@ const { readJSON, writeJSON } = require('../utils/jsonStorage');
 const ardorRoutes = require('./ardorRoutes');
 const polygonRoutes = require('./polygonRoutes');
 const cacheRoutes = require('./cacheRoutes');
-const craftsRouter = require('./crafts'); // Add this line
+const craftsRouter = require('./crafts');
+const tradesRouter = require('./trades');  // Add this line
+const burnsRouter = require('./burns');    // Add this line
+const usersRouter = require('./users');    // Add this line
 
 // Register routes
 router.use('/ardor', ardorRoutes);
 router.use('/polygon', polygonRoutes);
 router.use('/cache', cacheRoutes);
-router.use('/crafts', craftsRouter); // Add this line
+router.use('/crafts', craftsRouter);
+router.use('/trades', tradesRouter);  // Add this line
+router.use('/burns', burnsRouter);    // Add this line
+router.use('/users', usersRouter);    // Add this line
+
+// Add a simple ping test endpoint
+router.get('/ping', (req, res) => {
+  res.json({ success: true, message: 'API is working', timestamp: new Date().toISOString() });
+});
 
 // General status endpoint
 router.get('/status', (req, res) => {

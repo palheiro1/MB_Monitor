@@ -24,4 +24,7 @@ async function getActiveUsers() {
   }
 }
 
+// Check this file exists and exports getActiveUsers function
+
+// If not properly exported, add:
 module.exports = { getActiveUsers };

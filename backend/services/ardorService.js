@@ -9,7 +9,7 @@ const { getTrades } = require('./ardor/trades');
 const { getPrimarySales } = require('./ardor/sales');
 const { getCraftings } = require('../services/ardor/crafting');
 const { getMorphings } = require('./ardor/morphing');
-const { getCardBurns, getGEMBurns } = require('./ardor/burns');
+const { getCardBurns, getGEMBurns } = require('./ardor/burns'); // Update to import getGEMBurns
 const { getActiveUsers } = require('./ardor/users');
 const { getTrackedAssets } = require('./ardor/assets');
 
@@ -132,7 +132,7 @@ module.exports = {
   getCraftings,
   getMorphings,
   getCardBurns,
-  getGEMBurns,
+  getGEMBurns, // Add getGEMBurns to exports
   getActiveUsers,
   getTrackedAssets,
   getAllData,

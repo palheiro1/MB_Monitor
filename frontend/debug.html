@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MB Monitor API Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 5px; padding: 8px 16px; }
+        pre { background-color: #f4f4f4; padding: 10px; border-radius: 4px; overflow: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>MB Monitor API Debug Tool</h1>
+    
+    <div>
+        <h2>Test API Endpoints</h2>
+        <button onclick="testEndpoint('/api/cache/debug')">Test Debug Endpoint</button>
+        <button onclick="testEndpoint('/api/cache/status')">Test Cache Status</button>
+        <button onclick="testEndpoint('/api/cache/file/ardor_card_burns')">Test Burns File</button>
+        <button onclick="testEndpoint('/api/trades?period=30d')">Test Trades</button>
+        <button onclick="testEndpoint('/api/crafts?period=30d')">Test Crafts</button>
+        <button onclick="testEndpoint('/api/burns?period=30d')">Test Burns</button>
+    </div>
+    
+    <div>
+        <h2>Response:</h2>
+        <pre id="response">No response yet</pre>
+    </div>
+    
+    <script>
+        async function testEndpoint(endpoint) {
+            const responseElem = document.getElementById('response');
+            responseElem.textContent = `Fetching from ${endpoint}...`;
+            responseElem.className = '';
+            
+            try {
+                const response = await fetch(endpoint);
+                const contentType = response.headers.get('content-type');
+                
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const data = await response.json();
+                        responseElem.textContent = JSON.stringify(data, null, 2);
+                        responseElem.className = 'success';
+                    } catch (parseError) {
+                        const text = await response.text();
+                        responseElem.textContent = `JSON Parse Error: ${parseError.message}\n\nRaw response:\n${text}`;
+                        responseElem.className = 'error';
+                    }
+                } else {
+                    const text = await response.text();
+                    responseElem.textContent = `Non-JSON Response (${contentType}):\n${text}`;
+                }
+            } catch (error) {
+                responseElem.textContent = `Fetch Error: ${error.message}`;
+                responseElem.className = 'error';
+            }
+        }
+    </script>
+</body>
+</html>

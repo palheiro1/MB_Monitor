@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Test Page</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    button { padding: 8px 12px; margin-right: 8px; margin-bottom: 10px; cursor: pointer; }
+    pre { background-color: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; max-height: 400px; }
+    .endpoint { margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 15px; }
+    .success { color: green; }
+    .error { color: red; }
+    .loading { opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <h1>MB Monitor API Test</h1>
+  <p>Use this page to test API endpoints</p>
+  
+  <div class="endpoint">
+    <h2>Ping Test</h2>
+    <button id="ping-btn">Test Ping</button>
+    <pre id="ping-result">Click button to test...</pre>
+  </div>
+  
+  <div class="endpoint">
+    <h2>Trades</h2>
+    <button id="trades-btn">Get Trades</button>
+    <pre id="trades-result">Click button to test...</pre>
+  </div>
+  
+  <div class="endpoint">
+    <h2>Crafts</h2>
+    <button id="crafts-btn">Get Crafts</button>
+    <pre id="crafts-result">Click button to test...</pre>
+  </div>
+  
+  <div class="endpoint">
+    <h2>Burns</h2>
+    <button id="burns-btn">Get Burns</button>
+    <pre id="burns-result">Click button to test...</pre>
+  </div>
+  
+  <div class="endpoint">
+    <h2>Cache Status</h2>
+    <button id="cache-btn">Get Cache Status</button>
+    <pre id="cache-result">Click button to test...</pre>
+  </div>
+  
+  <script>
+    // Test function to call API endpoints
+    async function testEndpoint(url, resultElement) {
+      resultElement.textContent = "Loading...";
+      resultElement.className = "loading";
+      
+      try {
+        const response = await fetch(url);
+        console.log(`Response from ${url}:`, response);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          resultElement.textContent = `Error ${response.status}: ${errorText || response.statusText}`;
+          resultElement.className = "error";
+          return;
+        }
+        
+        const responseText = await response.text();
+        console.log(`Raw response:`, responseText);
+        
+        try {
+          const data = JSON.parse(responseText);
+          resultElement.textContent = JSON.stringify(data, null, 2);
+          resultElement.className = "success";
+        } catch (e) {
+          resultElement.textContent = `Error parsing JSON: ${e.message}\n\nRaw response: ${responseText}`;
+          resultElement.className = "error";
+        }
+      } catch (error) {
+        resultElement.textContent = `Request failed: ${error.message}`;
+        resultElement.className = "error";
+      }
+    }
+    
+    // Set up event listeners
+    document.getElementById('ping-btn').addEventListener('click', () => {
+      testEndpoint('/api/ping', document.getElementById('ping-result'));
+    });
+    
+    document.getElementById('trades-btn').addEventListener('click', () => {
+      testEndpoint('/api/trades?period=30d', document.getElementById('trades-result'));
+    });
+    
+    document.getElementById('crafts-btn').addEventListener('click', () => {
+      testEndpoint('/api/crafts?period=30d', document.getElementById('crafts-result'));
+    });
+    
+    document.getElementById('burns-btn').addEventListener('click', () => {
+      testEndpoint('/api/burns?period=30d', document.getElementById('burns-result'));
+    });
+    
+    document.getElementById('cache-btn').addEventListener('click', () => {
+      testEndpoint('/api/cache/status', document.getElementById('cache-result'));
+    });
+  </script>
+</body>
+</html>

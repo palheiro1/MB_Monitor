@@ -388,4 +388,4 @@ async function getBurns(period = 'all', forceRefresh = false) {
 }
 
 // Module exports
-module.exports = { getCardBurns, getGEMBurns, getBurns };
+module.exports = { getCardBurns, getGEMBurns };

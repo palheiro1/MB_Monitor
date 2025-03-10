@@ -18,6 +18,12 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 // API routes
 app.use('/api', api);
 
+// Add this BEFORE the catch-all route that serves the HTML
+app.use((req, res, next) => {
+  console.log(`[DEBUG] Request: ${req.method} ${req.path}`);
+  next();
+});
+
 // Initialize services
 console.log('Initializing blockchain services...');
 ardorService.init();
@@ -27,14 +33,20 @@ polygonService.init();
 // This ensures the cache is populated immediately instead of waiting for the service cycle
 console.log('Running initial burn detection...');
 ardorService.getCardBurns().catch(err => console.error('Initial burn detection failed:', err));
-ardorService.getGEMBurns().catch(err => console.error('Initial GEM burn detection failed:', err));
+// Comment out the GEM burns line until it's implemented
+// ardorService.getGEMBurns().catch(err => console.error('Initial GEM burn detection failed:', err));
 
 // Also fetch trade data on startup - fetch all trades, not just 30d
 console.log('Running initial trade detection...');
 ardorService.getTrades('all', true).catch(err => console.error('Initial trade detection failed:', err));
 
+// Fix: Move this catch-all route to AFTER all API routes
 // Frontend route - serve index.html
-app.get('*', (req, res) => {
+app.get('*', (req, res, next) => {
+  // Don't handle API routes here
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
