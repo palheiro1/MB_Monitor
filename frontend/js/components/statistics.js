@@ -21,13 +21,15 @@ export function updateStats(data) {
     }
   }
 
-  // Update users count
+  // Update users count - ensure we display the correct active users count
   if (data.usersData) {
     const usersElement = document.getElementById('active-users');
     if (usersElement) {
-      const ardorUsers = data.usersData.ardor_users?.length || 0;
-      const polygonUsers = data.usersData.polygon_users?.length || 0;
-      usersElement.textContent = formatNumber(ardorUsers + polygonUsers);
+      // Use the count directly from the API response if available
+      const activeUsers = data.usersData.count || 0;
+      usersElement.textContent = formatNumber(activeUsers);
+      
+      console.log(`Updated active users display: ${activeUsers}`);
     }
   }
 
@@ -47,7 +49,7 @@ export function updateStats(data) {
     }
   }
 
-  // Update giftz sales count - First log data to debug
+  // Update giftz sales count
   if (data.giftzData) {
     console.log('Giftz data received:', data.giftzData);
     const giftzElement = document.getElementById('giftz-sales');

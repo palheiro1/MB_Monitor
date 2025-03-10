@@ -4,8 +4,9 @@
  * Centralizes UI operations and element access.
  */
 
-import { getState, setState, toggleSortDirection } from '../state/index.js';
+import { getState, setState } from '../state/index.js';
 import { debounce } from '../utils/helpers.js';
+import { fetchAllData } from '../data-manager/index.js';
 
 // Cache for DOM elements
 const elementCache = {};
@@ -125,10 +126,50 @@ export function setupUI() {
 }
 
 // Event handler functions
+
+/**
+ * Handle period change
+ * @param {Event} event - Click event
+ */
 function handlePeriodChange(event) {
-  // Implementation details
-  console.log('Period changed:', event.target.dataset.period);
-  // Add your period change logic here
+  const newPeriod = event.target.dataset.period;
+  const currentPeriod = getState('currentPeriod');
+  
+  // If period hasn't changed, do nothing
+  if (newPeriod === currentPeriod) return;
+  
+  console.log(`Period changed from ${currentPeriod} to ${newPeriod}`);
+  
+  // Update the visual state of buttons
+  const periodButtons = document.querySelectorAll('.period-selector');
+  periodButtons.forEach(btn => {
+    btn.classList.remove('active', 'btn-primary');
+    btn.classList.add('btn-outline-primary');
+  });
+  
+  event.target.classList.remove('btn-outline-primary');
+  event.target.classList.add('active', 'btn-primary');
+  
+  // Update application state
+  setState('currentPeriod', newPeriod);
+  
+  // Show loading indicator
+  showLoading();
+  
+  // Update status badge
+  updateStatusBadge('loading');
+  
+  // Fetch new data with the selected period
+  fetchAllData(true)
+    .then(() => {
+      updateStatusBadge('success');
+      // Also dispatch a custom event for other components to react
+      document.dispatchEvent(new CustomEvent('period-changed', { detail: { period: newPeriod } }));
+    })
+    .catch(error => {
+      console.error('Error fetching data after period change:', error);
+      updateStatusBadge('error');
+    });
 }
 
 function handleRefresh() {

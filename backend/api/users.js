@@ -4,8 +4,7 @@
  */
 const express = require('express');
 const router = express.Router();
-const { getActiveUsers: getArdorUsers } = require('../services/ardor/users');
-const { filterByPeriod } = require('../utils/filters');
+const ardorService = require('../services/ardorService');
 
 /**
  * @route GET /api/users
@@ -15,18 +14,20 @@ const { filterByPeriod } = require('../utils/filters');
 router.get('/', async (req, res) => {
   try {
     const { period = 'all' } = req.query;
-    console.log(`Processing users request with period=${period}`);
+    const forceRefresh = req.query.refresh === 'true';
+    
+    console.log(`Processing users request with period=${period}, forceRefresh=${forceRefresh}`);
     
     // Get active users
-    const ardorUsersData = await getArdorUsers();
+    const ardorUsersData = await ardorService.getActiveUsers(period, forceRefresh);
     
     if (!ardorUsersData) {
       return res.status(404).json({ error: 'No users data available' });
     }
     
     return res.json({
-      ardor_users: ardorUsersData.activeUsers || [],
-      count: ardorUsersData.activeUsers?.length || 0,
+      ardor_users: ardorUsersData.ardor_users || [],
+      count: ardorUsersData.count || 0,
       timestamp: new Date().toISOString(),
       period
     });

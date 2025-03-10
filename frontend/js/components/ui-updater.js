@@ -38,25 +38,19 @@ export function initUIUpdater() {
  */
 function handlePeriodChanged(event) {
   const period = event.detail.period;
-  console.log(`Period changed to: ${period}`);
+  console.log(`UI Updater: Period changed to ${period}`);
   
-  // Update state
-  setState('currentPeriod', period);
+  // Update all UI components that might need period-specific updates
+  const data = getState('currentData');
+  if (data) {
+    updateUI(data);
+  }
   
-  // Show loading indicator
-  showLoading();
-  
-  // Update status
-  updateStatusBadge('loading');
-  
-  // Fetch new data
-  fetchAllData(true)
-    .then(() => {
-      updateStatusBadge('success');
-    })
-    .catch(() => {
-      updateStatusBadge('error');
-    });
+  // You could also add code here to update charts or other visualizations
+  // that need to reflect the new time period
+  if (typeof updateCharts === 'function') {
+    updateCharts(period);
+  }
 }
 
 /**

@@ -24,6 +24,9 @@ async function initApp() {
     // Explicitly set the current period to match our config
     setState('currentPeriod', DEFAULT_PERIOD);
     
+    // Make sure the UI reflects the current period
+    updatePeriodUISelection(DEFAULT_PERIOD);
+    
     // Set up UI elements and event listeners
     setupUI();
     
@@ -50,6 +53,25 @@ async function initApp() {
   } catch (error) {
     console.error('Failed to initialize application:', error);
   }
+}
+
+/**
+ * Update the UI to reflect the currently selected period
+ * @param {string} period - The period to set active
+ */
+function updatePeriodUISelection(period) {
+  const periodButtons = document.querySelectorAll('.period-selector');
+  periodButtons.forEach(button => {
+    // Reset all buttons first
+    button.classList.remove('active', 'btn-primary');
+    button.classList.add('btn-outline-primary');
+    
+    // Set the active button
+    if (button.dataset.period === period) {
+      button.classList.remove('btn-outline-primary');
+      button.classList.add('active', 'btn-primary');
+    }
+  });
 }
 
 /**

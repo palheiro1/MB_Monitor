@@ -20,7 +20,7 @@ const API_BASE = '/api'; // Default base URL
  */
 export async function fetchAllData(showLoading = true) {
   try {
-    // Use the DEFAULT_PERIOD from config.js if currentPeriod is not set yet
+    // Get the current period from state (fallback to default if not set)
     const period = getState('currentPeriod') || DEFAULT_PERIOD;
     console.log(`Fetching all data for period: ${period}`);
     
@@ -30,7 +30,7 @@ export async function fetchAllData(showLoading = true) {
       setState('previousData', currentData);
     }
     
-    // Fetch all data in parallel
+    // Fetch all data in parallel, using the current period
     const [tradesData, craftsData, morphsData, burnsData, usersData, giftzData] = await Promise.all([
       fetchEndpoint(`/trades?period=${period}`),
       fetchEndpoint(`/crafts?period=${period}`),

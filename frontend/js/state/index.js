@@ -5,29 +5,26 @@
  * Maintains the single source of truth for all application data.
  */
 
-// Default application configuration
-const DEFAULT_CONFIG = {
-  API_BASE_URL: '/api',
-  REFRESH_INTERVAL: 60000, // 60 seconds
-  DEFAULT_PERIOD: '30d',
-  ANIMATION_ENABLED: true,
-  CHART_ANIMATION_DURATION: 800,
-  COUNTER_ANIMATION_DURATION: 1000
-};
-
-// Load configuration from environment or defaults
-const config = loadConfig();
+import { DEFAULT_PERIOD } from '../config.js';
 
 // Application state store
 let state = {
   // Configuration
-  config,
+  config: {
+    API_BASE_URL: '/api',
+    REFRESH_INTERVAL: 60000, // 60 seconds
+    DEFAULT_PERIOD: DEFAULT_PERIOD,
+    ANIMATION_ENABLED: true,
+    CHART_ANIMATION_DURATION: 800,
+    COUNTER_ANIMATION_DURATION: 1000
+  },
   
   // UI state
-  currentPeriod: config.DEFAULT_PERIOD,
+  currentPeriod: DEFAULT_PERIOD,
   isLoading: false,
   sortDirection: 'desc',
-  animationsEnabled: config.ANIMATION_ENABLED,
+  searchQuery: '',
+  animationsEnabled: true,
   
   // Chart references
   charts: {
@@ -58,20 +55,20 @@ let state = {
 
 /**
  * Load configuration from data attributes in the script tag
- * @returns {Object} Configuration object
  */
 function loadConfig() {
-  const config = {...DEFAULT_CONFIG};
   const configEl = document.getElementById('app-config');
   
   if (configEl) {
-    if (configEl.dataset.apiUrl) config.API_BASE_URL = configEl.dataset.apiUrl;
-    if (configEl.dataset.refreshInterval) config.REFRESH_INTERVAL = parseInt(configEl.dataset.refreshInterval);
-    if (configEl.dataset.defaultPeriod) config.DEFAULT_PERIOD = configEl.dataset.defaultPeriod;
-    if (configEl.dataset.animationEnabled) config.ANIMATION_ENABLED = configEl.dataset.animationEnabled === 'true';
+    if (configEl.dataset.apiUrl) state.config.API_BASE_URL = configEl.dataset.apiUrl;
+    if (configEl.dataset.refreshInterval) state.config.REFRESH_INTERVAL = parseInt(configEl.dataset.refreshInterval);
+    if (configEl.dataset.defaultPeriod) state.config.DEFAULT_PERIOD = configEl.dataset.defaultPeriod;
+    if (configEl.dataset.animationEnabled) state.config.ANIMATION_ENABLED = configEl.dataset.animationEnabled === 'true';
   }
   
-  return config;
+  // Update currentPeriod to match config
+  state.currentPeriod = state.config.DEFAULT_PERIOD;
+  state.animationsEnabled = state.config.ANIMATION_ENABLED;
 }
 
 /**
@@ -79,47 +76,66 @@ function loadConfig() {
  * @param {Object} initialState - Optional initial state to override defaults
  */
 export function initState(initialState = {}) {
-  state = {
-    ...state,
-    ...initialState
-  };
+  // Load config from DOM first
+  loadConfig();
+  
+  // Then merge any provided initialState
+  Object.assign(state, initialState);
 }
 
 /**
- * Get the current state or a specific part of it
- * @param {string} path - Optional dot-notation path (e.g., 'currentData.statsData')
- * @returns {*} The requested state portion or the entire state
+ * Get state value
+ * @param {string} key - State key to get (supports dot notation for nested props)
+ * @param {*} defaultValue - Default value if key not found
+ * @returns {*} State value
  */
-export function getState(path) {
-  if (!path) return { ...state };
+export function getState(key, defaultValue = null) {
+  if (!key) return { ...state };
   
-  return path.split('.').reduce((obj, key) => 
-    obj && obj[key] !== undefined ? obj[key] : null, state);
-}
-
-/**
- * Update application state
- * @param {string} path - Dot-notation path to update (e.g., 'currentData.statsData')
- * @param {*} value - New value to set
- * @returns {Object} Updated state
- */
-export function setState(path, value) {
-  if (!path) return state;
+  // Handle dot notation for nested properties
+  const keys = key.split('.');
+  let value = state;
   
-  const parts = path.split('.');
-  const lastKey = parts.pop();
-  let current = state;
-  
-  // Navigate to the parent object
-  for (const part of parts) {
-    if (!current[part]) current[part] = {};
-    current = current[part];
+  for (const k of keys) {
+    if (value === null || value === undefined || typeof value !== 'object') {
+      return defaultValue;
+    }
+    value = value[k];
+    if (value === undefined) {
+      return defaultValue;
+    }
   }
   
-  // Update the value
-  current[lastKey] = value;
+  return value;
+}
+
+/**
+ * Set state value
+ * @param {string} key - State key to set
+ * @param {*} value - New value
+ */
+export function setState(key, value) {
+  if (!key) return;
   
-  return state;
+  // Handle dot notation for nested properties
+  const keys = key.split('.');
+  
+  if (keys.length === 1) {
+    state[key] = value;
+    return;
+  }
+  
+  // Handle nested properties
+  let current = state;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const k = keys[i];
+    if (!(k in current)) {
+      current[k] = {};
+    }
+    current = current[k];
+  }
+  
+  current[keys[keys.length - 1]] = value;
 }
 
 /**
@@ -130,12 +146,13 @@ export function savePreviousData() {
 }
 
 /**
- * Toggle sort direction
+ * Toggle sort direction and return new value
  * @returns {string} New sort direction ('asc' or 'desc')
  */
 export function toggleSortDirection() {
-  state.sortDirection = state.sortDirection === 'desc' ? 'asc' : 'desc';
-  return state.sortDirection;
+  const newDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
+  state.sortDirection = newDirection;
+  return newDirection;
 }
 
 /**
