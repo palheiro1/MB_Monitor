@@ -18,6 +18,7 @@ const burnsRouter = require('./burns');
 const usersRouter = require('./users');
 const morphsRouter = require('./morphs');
 const giftzRouter = require('./giftz'); // Add this line
+const activityRouter = require('./activity');
 
 // Register routes
 router.use('/ardor', ardorRoutes);
@@ -29,6 +30,7 @@ router.use('/burns', burnsRouter);
 router.use('/users', usersRouter);
 router.use('/morphs', morphsRouter);
 router.use('/giftz', giftzRouter); // Add this line
+router.use('/activity', activityRouter);
 
 // Add a simple ping test endpoint
 router.get('/ping', (req, res) => {

@@ -5,10 +5,13 @@
  * Contains settings for API endpoints, timeouts, and other constants.
  */
 
+// API Configuration - export this directly so it can be imported elsewhere
+export const API_BASE_URL = '/api';
+
 // API Configuration
 export const API_CONFIG = {
   // Application backend API
-  BACKEND_API_URL: '/api',
+  BACKEND_API_URL: API_BASE_URL,
   
   // Blockchain node URLs
   ARDOR: {
@@ -56,7 +59,7 @@ export const TIME_PERIODS = {
  */
 export function loadEnvConfig() {
   const defaultConfig = {
-    API_BASE_URL: API_CONFIG.BACKEND_API_URL,
+    API_BASE_URL: API_BASE_URL,
     REFRESH_INTERVAL,
     DEFAULT_PERIOD,
     ANIMATION_ENABLED: UI_ANIMATION_ENABLED,

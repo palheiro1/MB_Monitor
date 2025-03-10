@@ -574,5 +574,27 @@
       }
     });
   </script>
+
+  <!-- Charts.js Library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  
+  <!-- Application scripts -->
+  <script type="module" src="js/index.js"></script>
+  
+  <!-- Debug information -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check if Chart.js is loaded
+      if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded!');
+      } else {
+        console.log('Chart.js is available, version:', Chart.version);
+      }
+      
+      // Log when canvas elements are available
+      const activityCanvas = document.getElementById('activity-chart');
+      console.log('Activity chart canvas found:', !!activityCanvas);
+    });
+  </script>
 </body>
 </html>

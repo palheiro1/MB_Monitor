@@ -1,18 +1,17 @@
 /**
- * Ardor Blockchain Service
- * Handles data fetching and processing for Ardor blockchain
+ * Ardor Service
+ * Central module for all Ardor blockchain interactions
  */
-const { readJSON, writeJSON } = require('../utils/jsonStorage');
-const { CACHE_TTL } = require('../config');
 
-const { getTrades } = require('./ardor/trades');
-const { getPrimarySales } = require('./ardor/sales');
-const { getCraftings } = require('../services/ardor/crafting');
-const { getCardBurns, getGEMBurns } = require('./ardor/burns'); // Update to import getGEMBurns
-const { getActiveUsers } = require('./ardor/users');
+// Import various service modules
 const { getTrackedAssets } = require('./ardor/assets');
-const { getGiftzSales } = require('./ardor/giftz'); // Import here to avoid redeclaration
-const { getMorphings } = require('./ardor/morphing'); // Import here to avoid redeclaration
+const { getCardBurns } = require('./ardor/burns');
+const { getTrades } = require('./ardor/trades');         // Confirm this is getTrades, not getArdorTrades
+const { getCraftings } = require('./ardor/crafting');    // Fixed: was 'crafts', now 'crafting'
+const { getMorphings } = require('./ardor/morphing');
+const { getGiftzSales } = require('./ardor/giftz');
+const { getActiveUsers } = require('./ardor/users');
+const { CACHE_TTL } = require('../config'); // Add this import
 
 // Use the same Ardor epoch constant for consistency
 const ARDOR_EPOCH = 1514764800000; // January 1, 2018 00:00:00 UTC in milliseconds
@@ -90,40 +89,33 @@ async function getAllData() {
 /**
  * Initialize service - start periodic cache updates
  */
-function init() {
-  // Update cache immediately
+async function init() {
   console.log('Initializing Ardor service and populating caches...');
   
-  // Fetch the master trades cache with all trades first
-  getTrades('all', true)
-    .then(result => console.log(`Initialized main trades cache with ${result.count} trades`))
-    .catch(err => console.error('Failed to initialize trades cache:', err.message));
+  try {
+    // Initialize tracked assets cache
+    await getTrackedAssets(true);
     
-  // Then fetch other data
-  getAllData().catch(err => console.error('Initial Ardor cache update failed:', err.message));
-
-  // Add morphings to initial data fetch
-  getMorphings(false)
-    .then(result => console.log(`Initialized morphing cache with ${result.count} morphs`))
-    .catch(err => console.error('Failed to initialize morphings cache:', err.message));
-
-  // Set up periodic cache updates
-  setInterval(() => {
-    getAllData().catch(err => console.error('Periodic Ardor cache update failed:', err.message));
-    // Refresh the master trades cache periodically (but less frequently)
-    if (Math.random() < 0.2) { // ~20% chance of refreshing trades on each cycle
-      getTrades('all', true)
-        .catch(err => console.error('Periodic trades cache update failed:', err.message));
-    }
-    // Add periodic morphing refresh (with similar frequency as trades)
-    if (Math.random() < 0.2) { // ~20% chance of refreshing morphings on each cycle
-      getMorphings(true)
-        .catch(err => console.error('Periodic morphings cache update failed:', err.message));
-    }
-  }, CACHE_TTL * 1000);
-
-  console.log('Ardor service initialized');
+    // Initialize other data caches as needed
+    // Only force refresh on startup for critical data
+    await getTrades(false);
+    await getCardBurns(false);
+    await getCraftings(false);
+    await getMorphings(false);
+    
+    console.log('Ardor service initialized');
+  } catch (error) {
+    console.error('Error initializing Ardor service:', error);
+    throw error; // Re-throw to let the application handle it
+  }
 }
+
+// Set up automatic cache refresh
+setInterval(() => {
+  console.log('Running scheduled cache refresh...');
+  getTrackedAssets(true)
+    .catch(err => console.error('Error refreshing assets cache:', err));
+}, CACHE_TTL * 1000);
 
 // When processing transaction data from Ardor API
 function processTransactionData(transaction) {
@@ -139,16 +131,14 @@ function processTransactionData(transaction) {
   };
 }
 
+// Export all service functions with consistent naming
 module.exports = {
-  getTrades,
-  getPrimarySales,
-  getCraftings,
-  getMorphings,
-  getCardBurns,
-  getGEMBurns,
-  getActiveUsers,
+  init,
   getTrackedAssets,
+  getCardBurns,
+  getTrades,        // Not getArdorTrades
+  getCraftings,     // Not getCrafts
+  getMorphings,
   getGiftzSales,
-  getAllData,
-  init
+  getActiveUsers
 };
