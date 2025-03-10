@@ -8,11 +8,11 @@ const { CACHE_TTL } = require('../config');
 const { getTrades } = require('./ardor/trades');
 const { getPrimarySales } = require('./ardor/sales');
 const { getCraftings } = require('../services/ardor/crafting');
-const { getMorphings } = require('./ardor/morphing');
 const { getCardBurns, getGEMBurns } = require('./ardor/burns'); // Update to import getGEMBurns
 const { getActiveUsers } = require('./ardor/users');
 const { getTrackedAssets } = require('./ardor/assets');
-const { getGiftzSales } = require('./ardor/giftz'); // Add this line
+const { getGiftzSales } = require('./ardor/giftz'); // Import here to avoid redeclaration
+const { getMorphings } = require('./ardor/morphing'); // Import here to avoid redeclaration
 
 // Use the same Ardor epoch constant for consistency
 const ARDOR_EPOCH = 1514764800000; // January 1, 2018 00:00:00 UTC in milliseconds
@@ -145,10 +145,10 @@ module.exports = {
   getCraftings,
   getMorphings,
   getCardBurns,
-  getGEMBurns, // Add getGEMBurns to exports
+  getGEMBurns,
   getActiveUsers,
   getTrackedAssets,
-  getGiftzSales, // Add this line
+  getGiftzSales,
   getAllData,
   init
 };

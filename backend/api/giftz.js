@@ -9,15 +9,17 @@ const ardorService = require('../services/ardorService');
 // Get Giftz sales with optional refresh
 router.get('/', async (req, res) => {
   try {
-    const period = req.query.period || '30d'; // Not used yet but consistent with other endpoints
+    const period = req.query.period || '30d';
     const forceRefresh = req.query.refresh === 'true';
     
     console.log(`Processing Giftz sales request with period=${period}, forceRefresh=${forceRefresh}`);
     
-    const giftzData = await ardorService.getGiftzSales(forceRefresh);
+    // Pass both forceRefresh and period parameters
+    const giftzData = await ardorService.getGiftzSales(forceRefresh, period);
     
     // Add debugging logs
     console.log(`Giftz data structure: ${JSON.stringify({
+      period: period,
       count: giftzData.count || 0,
       salesCount: (giftzData.sales || []).length,
       totalQuantity: giftzData.totalQuantity || 'not set',

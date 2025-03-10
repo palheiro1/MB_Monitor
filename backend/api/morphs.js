@@ -14,10 +14,12 @@ router.get('/', async (req, res) => {
     
     console.log(`Processing morphings request with period=${period}, forceRefresh=${forceRefresh}`);
     
-    const morphingData = await ardorService.getMorphings(forceRefresh);
+    // Pass both forceRefresh and period parameters
+    const morphingData = await ardorService.getMorphings(forceRefresh, period);
     
     // Add console log to see what data is being returned
     console.log(`Morphing data structure: ${JSON.stringify({
+      period: period,
       count: morphingData.count || 0,
       hasData: !!morphingData.morphings || !!morphingData.morphs,
       morphsLength: (morphingData.morphings || morphingData.morphs || []).length
@@ -29,7 +31,8 @@ router.get('/', async (req, res) => {
       morphs: Array.isArray(morphingData.morphings) ? morphingData.morphings : 
              (Array.isArray(morphingData.morphs) ? morphingData.morphs : []),
       count: morphingData.count || 0,
-      timestamp: morphingData.timestamp
+      timestamp: morphingData.timestamp,
+      period: period
     };
     
     res.json(response);

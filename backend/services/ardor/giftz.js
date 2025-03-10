@@ -212,20 +212,49 @@ async function processGiftzTransfer(transfer) {
 }
 
 /**
+ * Generate a time-based period filter
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @returns {number} Cutoff timestamp for filter
+ */
+function getPeriodFilter(period) {
+  // Ardor epoch start
+  const ARDOR_EPOCH = new Date("2018-01-01T00:00:00Z").getTime();
+  const now = new Date().getTime();
+  const currentTimestampArdor = Math.floor((now - ARDOR_EPOCH) / 1000);
+  
+  switch (period) {
+    case '24h':
+      return currentTimestampArdor - 86400; // 24 hours
+    case '7d':
+      return currentTimestampArdor - 604800; // 7 days
+    case '30d':
+      return currentTimestampArdor - 2592000; // 30 days
+    case 'all':
+    default:
+      return 0; // All time
+  }
+}
+
+/**
  * Get all Giftz sales
  * @param {boolean} forceRefresh - Whether to force refresh cache
+ * @param {string} period - Time period to filter (24h, 7d, 30d, all)
  * @returns {Promise<Object>} Sales data
  */
-async function getGiftzSales(forceRefresh = false) {
+async function getGiftzSales(forceRefresh = false, period = 'all') {
   try {
     // Check cache first
-    const cachedData = readJSON('ardor_giftz_sales');
+    const cacheKey = `ardor_giftz_sales_${period}`;
+    const cachedData = readJSON(cacheKey);
     if (cachedData && !forceRefresh) {
-      console.log(`Using cached Giftz sales with ${cachedData.count} entries`);
+      console.log(`Using cached Giftz sales for period ${period} with ${cachedData.count} entries`);
       return cachedData;
     }
     
-    console.log('Fetching fresh Giftz sales data...');
+    console.log(`Fetching fresh Giftz sales data for period ${period}...`);
+    
+    // Get timestamp cutoff based on period
+    const cutoffTimestamp = getPeriodFilter(period);
     
     // Fetch all transfers
     const allTransfers = await fetchAllTransfers();
@@ -242,13 +271,15 @@ async function getGiftzSales(forceRefresh = false) {
     
     const processedSales = await Promise.all(salesPromises);
     
-    // Filter out nulls (transfers that weren't sales)
-    const sales = processedSales.filter(sale => sale !== null);
+    // Filter out nulls (transfers that weren't sales) and apply period filter
+    const sales = processedSales
+      .filter(sale => sale !== null)
+      .filter(sale => sale.timestamp >= cutoffTimestamp);
     
     // Sort by timestamp (newest first)
     sales.sort((a, b) => b.timestamp - a.timestamp);
     
-    // Calculate total quantity of GIFTZ tokens transferred
+    // Calculate total quantity of GIFTZ tokens transferred in the filtered period
     const totalQuantity = sales.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
     
     // Create result object
@@ -256,13 +287,14 @@ async function getGiftzSales(forceRefresh = false) {
       sales,
       count: sales.length,
       totalQuantity,  // Add the total quantity
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      period
     };
     
-    console.log(`Found ${sales.length} valid Giftz sales with total ${totalQuantity} GIFTZ tokens transferred`);
+    console.log(`Found ${sales.length} valid Giftz sales for period ${period} with total ${totalQuantity} GIFTZ tokens transferred`);
     
     // Save to cache
-    writeJSON('ardor_giftz_sales', result);
+    writeJSON(cacheKey, result);
     
     return result;
   } catch (error) {
