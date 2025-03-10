@@ -8,6 +8,36 @@ import { getState } from '../../state/index.js';
 import { formatAddress, formatDate, formatTimeAgo } from '../../utils/formatters.js';
 
 /**
+ * Format activity type for display
+ * @param {string} type - Activity type
+ * @returns {string} Formatted activity type
+ */
+function formatActivityType(type) {
+  switch (type) {
+    case 'trade_buy': return 'Bought';
+    case 'trade_sell': return 'Sold';
+    case 'transfer_send': return 'Sent';
+    case 'transfer_receive': return 'Received';
+    default: return type.replace('_', ' ');
+  }
+}
+
+/**
+ * Get activity icon based on type
+ * @param {string} type - Activity type
+ * @returns {string} Icon class
+ */
+function getActivityIcon(type) {
+  switch (type) {
+    case 'trade_buy': return 'fa-shopping-cart';
+    case 'trade_sell': return 'fa-tag';
+    case 'transfer_send': return 'fa-arrow-up';
+    case 'transfer_receive': return 'fa-arrow-down';
+    default: return 'fa-circle';
+  }
+}
+
+/**
  * Render user cards
  * 
  * @param {Array} users - Array of user objects
@@ -18,7 +48,7 @@ export function renderUserCards(users, container, newItemIds = []) {
   if (!container) return;
   
   // Get search term if any
-  const searchInput = container.closest('.tab-pane').querySelector('.search-input');
+  const searchInput = container.closest('.tab-pane')?.querySelector('.search-input');
   const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
   
   // Filter users
@@ -31,12 +61,12 @@ export function renderUserCards(users, container, newItemIds = []) {
     });
   }
   
-  // Sort users by activity
+  // Sort users by most recent activity (last_seen) instead of activity count
   filteredUsers = [...filteredUsers].sort((a, b) => {
-    const activityA = (a.trades_count || 0) + (a.crafts_count || 0) + (a.burns_count || 0);
-    const activityB = (b.trades_count || 0) + (b.crafts_count || 0) + (b.burns_count || 0);
+    const timeA = new Date(a.last_seen || 0).getTime();
+    const timeB = new Date(b.last_seen || 0).getTime();
     
-    return getState('sortDirection') === 'desc' ? activityB - activityA : activityA - activityB;
+    return getState('sortDirection') === 'desc' ? timeB - timeA : timeA - timeB;
   });
   
   // Clear container
@@ -62,14 +92,83 @@ export function renderUserCards(users, container, newItemIds = []) {
     
     // Set card data - Use complete address
     card.querySelector('.user-name').textContent = user.name || user.address || 'Unknown User';
-    card.querySelector('.trades-count').textContent = user.trades_count || 0;
-    card.querySelector('.crafts-count').textContent = user.crafts_count || 0;
-    card.querySelector('.burns-count').textContent = user.burns_count || 0;
-    card.querySelector('.user-since').textContent = formatTimeAgo(user.first_seen);
+    
+    // Set dates
+    const userSinceEl = card.querySelector('.user-since');
+    if (userSinceEl) {
+      userSinceEl.textContent = `First seen: ${formatTimeAgo(user.first_seen)}`;
+      userSinceEl.title = formatDate(user.first_seen);
+    }
+    
+    const lastActivityEl = card.querySelector('.last-activity');
+    if (lastActivityEl) {
+      lastActivityEl.textContent = `Last activity: ${formatTimeAgo(user.last_seen)}`;
+      lastActivityEl.title = formatDate(user.last_seen);
+    }
+    
+    // Set activity counts
+    const tradesCountEl = card.querySelector('.trades-count');
+    if (tradesCountEl) {
+      tradesCountEl.textContent = (user.trades_count || 0).toString();
+    }
+    
+    const tradesBuyCountEl = card.querySelector('.trades-buy-count');
+    if (tradesBuyCountEl) {
+      tradesBuyCountEl.textContent = (user.trades_buy_count || 0).toString();
+    }
+    
+    const tradesSellCountEl = card.querySelector('.trades-sell-count');
+    if (tradesSellCountEl) {
+      tradesSellCountEl.textContent = (user.trades_sell_count || 0).toString();
+    }
+    
+    const transfersCountEl = card.querySelector('.transfers-count');
+    if (transfersCountEl) {
+      transfersCountEl.textContent = (user.transfers_count || 0).toString();
+    }
+    
+    // Add recent activity list if available
+    const recentActivitiesEl = card.querySelector('.recent-activities');
+    if (recentActivitiesEl && user.recent_activities && user.recent_activities.length > 0) {
+      // Clear any placeholder content
+      recentActivitiesEl.innerHTML = '';
+      
+      // Create a list of recent activities
+      const activityList = document.createElement('ul');
+      activityList.className = 'activity-list';
+      
+      // Add the most recent activities (up to 5)
+      user.recent_activities.slice(0, 5).forEach(activity => {
+        const activityItem = document.createElement('li');
+        activityItem.className = 'activity-item';
+        
+        // Create activity content with icon and details
+        activityItem.innerHTML = `
+          <span class="activity-icon"><i class="fas ${getActivityIcon(activity.type)}"></i></span>
+          <span class="activity-details">
+            <span class="activity-type">${formatActivityType(activity.type)}</span>
+            <span class="activity-asset">${activity.assetName}</span>
+            <span class="activity-time">${formatTimeAgo(activity.dateISO)}</span>
+          </span>
+        `;
+        
+        activityList.appendChild(activityItem);
+      });
+      
+      recentActivitiesEl.appendChild(activityList);
+      
+      // Add a "see more" button if there are more activities
+      if (user.total_activities > 5) {
+        const seeMoreBtn = document.createElement('button');
+        seeMoreBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
+        seeMoreBtn.textContent = `See all ${user.total_activities} activities`;
+        recentActivitiesEl.appendChild(seeMoreBtn);
+      }
+    }
     
     // Add animation class for new items
     const cardElement = card.querySelector('.transaction-card');
-    if (getState('animationsEnabled') && newItemIds.includes(user.id)) {
+    if (cardElement && getState('animationsEnabled') && newItemIds.includes(user.id)) {
       cardElement.classList.add('new-item-animation');
     }
     

@@ -5,7 +5,7 @@
  */
 
 import { getState } from '../../state/index.js';
-import { formatAddress, formatDateTime } from '../../utils/formatters.js';
+import { formatAddress, formatDateTime, formatTimeAgo } from '../../utils/formatters.js';
 
 /**
  * Render morph cards

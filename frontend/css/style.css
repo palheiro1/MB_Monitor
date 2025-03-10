@@ -151,4 +151,106 @@
   color: #9e9e9e;
 }
 
+/* User Card Activity Styling */
+.user-card .activity-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  padding-top: 8px;
+}
+
+.user-card .activity-item {
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+}
+
+.user-card .activity-icon {
+  width: 24px;
+  text-align: center;
+  margin-right: 8px;
+}
+
+.user-card .activity-details {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.user-card .activity-type {
+  font-weight: 500;
+  margin-right: 6px;
+}
+
+.user-card .activity-asset {
+  color: #6c757d;
+  margin-right: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.user-card .activity-time {
+  color: #999;
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+/* Different colors for different activity types */
+.user-card .activity-icon .fa-shopping-cart {
+  color: #28a745;
+}
+
+.user-card .activity-icon .fa-tag {
+  color: #fd7e14;
+}
+
+.user-card .activity-icon .fa-arrow-up {
+  color: #dc3545;
+}
+
+.user-card .activity-icon .fa-arrow-down {
+  color: #17a2b8;
+}
+
+/* Activity summary section */
+.user-card .activity-summary {
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+/* Activity counts section */
+.user-card .activity-counts {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.user-card .activity-counts span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-card .activity-counts i {
+  margin-right: 4px;
+}
+
+/* Hover effect for activity items */
+.user-card .activity-item:hover {
+  background-color: rgba(0,0,0,0.02);
+}
+
+/* "See more" button styling */
+.user-card .recent-activities .btn {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+}
+
 /* ...existing code... */

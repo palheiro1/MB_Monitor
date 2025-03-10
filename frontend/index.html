@@ -487,20 +487,31 @@
     </div>
   </template>
 
-  <!-- User Card Template -->
+  <!-- User Card Template - Enhanced for detailed activity information -->
   <template id="user-card-template">
     <div class="transaction-card user-card">
       <div class="transaction-header">
         <div class="card-badge"><i class="fas fa-user"></i> User</div>
-        <div class="user-since"></div>
       </div>
       <div class="transaction-body">
         <div class="user-name"></div>
         <div class="transaction-details">
           <div class="user-activity">
-            <span class="trades"><i class="fas fa-exchange-alt"></i> Trades: <span class="trades-count"></span></span>
-            <span class="crafts"><i class="fas fa-hammer"></i> Crafts: <span class="crafts-count"></span></span>
-            <span class="burns"><i class="fas fa-fire"></i> Burns: <span class="burns-count"></span></span>
+            <div class="activity-summary d-flex justify-content-between mb-2">
+              <div class="last-activity text-muted"></div>
+            </div>
+            
+            <div class="activity-counts d-flex flex-wrap mb-2">
+              <span class="trades me-3"><i class="fas fa-exchange-alt"></i> Trades: <span class="trades-count"></span></span>
+              <span class="trades-buy me-3"><i class="fas fa-shopping-cart"></i> Buys: <span class="trades-buy-count"></span></span>
+              <span class="trades-sell me-3"><i class="fas fa-tag"></i> Sells: <span class="trades-sell-count"></span></span>
+              <span class="transfers"><i class="fas fa-exchange-alt"></i> Transfers: <span class="transfers-count"></span></span>
+            </div>
+            
+            <!-- New section for recent activities -->
+            <div class="recent-activities mt-2">
+              <div class="text-muted">No recent activity information available</div>
+            </div>
           </div>
         </div>
       </div>

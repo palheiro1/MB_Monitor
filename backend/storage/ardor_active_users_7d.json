@@ -1,36 +1,5 @@
 {
-  "ardor_users": [
-    {
-      "id": "ARDOR-W84R-KYMV-ZERQ-GGD4X",
-      "address": "ARDOR-W84R-KYMV-ZERQ-GGD4X",
-      "first_seen": "2025-03-10T15:53:03.017Z",
-      "network": "ardor"
-    },
-    {
-      "id": "ARDOR-WDYX-3Q5N-K4HS-CUTKE",
-      "address": "ARDOR-WDYX-3Q5N-K4HS-CUTKE",
-      "first_seen": "2025-03-10T15:53:03.017Z",
-      "network": "ardor"
-    },
-    {
-      "id": "ARDOR-VGDP-FJ3E-F5TE-C6JQL",
-      "address": "ARDOR-VGDP-FJ3E-F5TE-C6JQL",
-      "first_seen": "2025-03-10T15:53:03.017Z",
-      "network": "ardor"
-    },
-    {
-      "id": "ARDOR-Q9KZ-74XD-WERK-CV6GB",
-      "address": "ARDOR-Q9KZ-74XD-WERK-CV6GB",
-      "first_seen": "2025-03-10T15:53:03.017Z",
-      "network": "ardor"
-    },
-    {
-      "id": "ARDOR-BEBY-WSGY-XU9N-HALPR",
-      "address": "ARDOR-BEBY-WSGY-XU9N-HALPR",
-      "first_seen": "2025-03-10T15:53:03.017Z",
-      "network": "ardor"
-    }
-  ],
+  "ardor_users": [],
   "activeUsers": 5,
   "count": 5,
   "timestamp": "2025-03-10T15:53:03.017Z",

@@ -14,6 +14,14 @@ const COMPANY_BLACKLIST = [
   'ARDOR-AS2E-5QF9-8LHR-8ZKXK'
 ];
 
+// Ardor epoch constant
+const ARDOR_EPOCH = new Date("2018-01-01T00:00:00Z").getTime();
+
+// Function to convert Ardor timestamp to ISO date string
+function ardorTimestampToISODate(timestamp) {
+  return new Date(ARDOR_EPOCH + (timestamp * 1000)).toISOString();
+}
+
 // Also have numeric account IDs for efficiency
 const getNumericBlacklist = async () => {
   const numericIds = [];
@@ -161,6 +169,35 @@ async function getAssetTrades(assetId, cutoffTimestamp = 0) {
 }
 
 /**
+ * Get asset details including name
+ * @param {string} assetId - Asset ID
+ * @returns {Promise<Object|null>} Asset details or null if not found
+ */
+async function getAssetDetails(assetId) {
+  try {
+    const response = await axios.get(ARDOR_API_URL, {
+      params: {
+        requestType: 'getAsset',
+        asset: assetId,
+        includeCounts: false
+      }
+    });
+    
+    if (response.data && response.data.name) {
+      return {
+        id: assetId,
+        name: response.data.name,
+        description: response.data.description
+      };
+    }
+    return null;
+  } catch (error) {
+    console.warn(`Error fetching asset details for ${assetId}:`, error.message);
+    return null;
+  }
+}
+
+/**
  * Get active users across all assets
  * @param {string} period - Time period (24h, 7d, 30d, all)
  * @param {boolean} forceRefresh - Force refresh cache
@@ -212,40 +249,167 @@ async function getActiveUsers(period = 'all', forceRefresh = false) {
     const blacklistNumeric = await getNumericBlacklist();
     const blacklist = new Set([...COMPANY_BLACKLIST, ...blacklistNumeric]);
     
-    // Track unique active users
-    const activeUsers = new Set();
+    // Create a map of asset ids to their names for better display
+    const assetDetails = {};
+    
+    // Instead of a Set, use an object to store users with their activities
+    const activeUsersMap = {};
     
     // Process assets in batches to avoid overwhelming the API
     const batchSize = 5;
     for (let i = 0; i < assetIds.length; i += batchSize) {
       const batch = assetIds.slice(i, i + batchSize);
       
+      // Get asset details for the batch
+      const detailsPromises = batch.map(async assetId => {
+        if (!assetDetails[assetId]) {
+          const details = await getAssetDetails(assetId);
+          if (details) {
+            assetDetails[assetId] = details;
+          }
+        }
+      });
+      
+      await Promise.all(detailsPromises);
+      
       // Process each asset in the batch in parallel
       const batchPromises = batch.map(async assetId => {
         // Get transfers for this asset
         const transfers = await getAssetTransfers(assetId, cutoffTimestamp);
         
-        // Extract unique users from transfers
+        // Extract detailed user activities from transfers
         transfers.forEach(transfer => {
           const sender = transfer.senderRS || transfer.sender;
           const recipient = transfer.recipientRS || transfer.recipient;
+          const timestamp = parseInt(transfer.timestamp);
+          const dateISO = ardorTimestampToISODate(timestamp);
+          const assetName = assetDetails[assetId]?.name || 'Unknown Asset';
           
-          // Add to active users if not blacklisted
-          if (sender && !blacklist.has(sender)) activeUsers.add(sender);
-          if (recipient && !blacklist.has(recipient)) activeUsers.add(recipient);
+          // Add sender activity if not blacklisted
+          if (sender && !blacklist.has(sender)) {
+            if (!activeUsersMap[sender]) {
+              activeUsersMap[sender] = {
+                id: sender,
+                address: sender,
+                first_seen: dateISO,
+                last_seen: dateISO,
+                activities: []
+              };
+            }
+            
+            // Update last seen if this activity is newer
+            if (dateISO > activeUsersMap[sender].last_seen) {
+              activeUsersMap[sender].last_seen = dateISO;
+            }
+            
+            // Add this activity
+            activeUsersMap[sender].activities.push({
+              type: 'transfer_send',
+              timestamp: timestamp,
+              dateISO: dateISO,
+              assetId: assetId,
+              assetName: assetName,
+              quantity: transfer.quantityQNT || '1'
+            });
+          }
+          
+          // Add recipient activity if not blacklisted
+          if (recipient && !blacklist.has(recipient)) {
+            if (!activeUsersMap[recipient]) {
+              activeUsersMap[recipient] = {
+                id: recipient,
+                address: recipient,
+                first_seen: dateISO,
+                last_seen: dateISO,
+                activities: []
+              };
+            }
+            
+            // Update last seen if this activity is newer
+            if (dateISO > activeUsersMap[recipient].last_seen) {
+              activeUsersMap[recipient].last_seen = dateISO;
+            }
+            
+            // Add this activity
+            activeUsersMap[recipient].activities.push({
+              type: 'transfer_receive',
+              timestamp: timestamp,
+              dateISO: dateISO,
+              assetId: assetId,
+              assetName: assetName,
+              quantity: transfer.quantityQNT || '1'
+            });
+          }
         });
         
         // Get trades for this asset
         const trades = await getAssetTrades(assetId, cutoffTimestamp);
         
-        // Extract unique users from trades
+        // Extract detailed user activities from trades
         trades.forEach(trade => {
           const buyer = trade.buyerRS || trade.buyer;
           const seller = trade.sellerRS || trade.seller;
+          const timestamp = parseInt(trade.timestamp);
+          const dateISO = ardorTimestampToISODate(timestamp);
+          const assetName = assetDetails[assetId]?.name || 'Unknown Asset';
           
-          // Add to active users if not blacklisted
-          if (buyer && !blacklist.has(buyer)) activeUsers.add(buyer);
-          if (seller && !blacklist.has(seller)) activeUsers.add(seller);
+          // Add buyer activity if not blacklisted
+          if (buyer && !blacklist.has(buyer)) {
+            if (!activeUsersMap[buyer]) {
+              activeUsersMap[buyer] = {
+                id: buyer,
+                address: buyer,
+                first_seen: dateISO,
+                last_seen: dateISO,
+                activities: []
+              };
+            }
+            
+            // Update last seen if this activity is newer
+            if (dateISO > activeUsersMap[buyer].last_seen) {
+              activeUsersMap[buyer].last_seen = dateISO;
+            }
+            
+            // Add this activity
+            activeUsersMap[buyer].activities.push({
+              type: 'trade_buy',
+              timestamp: timestamp,
+              dateISO: dateISO,
+              assetId: assetId,
+              assetName: assetName,
+              price: trade.priceNQTPerShare || '0',
+              quantity: trade.quantityQNT || '1'
+            });
+          }
+          
+          // Add seller activity if not blacklisted
+          if (seller && !blacklist.has(seller)) {
+            if (!activeUsersMap[seller]) {
+              activeUsersMap[seller] = {
+                id: seller,
+                address: seller,
+                first_seen: dateISO,
+                last_seen: dateISO,
+                activities: []
+              };
+            }
+            
+            // Update last seen if this activity is newer
+            if (dateISO > activeUsersMap[seller].last_seen) {
+              activeUsersMap[seller].last_seen = dateISO;
+            }
+            
+            // Add this activity
+            activeUsersMap[seller].activities.push({
+              type: 'trade_sell',
+              timestamp: timestamp,
+              dateISO: dateISO,
+              assetId: assetId,
+              assetName: assetName,
+              price: trade.priceNQTPerShare || '0',
+              quantity: trade.quantityQNT || '1'
+            });
+          }
         });
       });
       
@@ -255,17 +419,49 @@ async function getActiveUsers(period = 'all', forceRefresh = false) {
       console.log(`Processed ${Math.min(i + batchSize, assetIds.length)}/${assetIds.length} assets`);
     }
     
-    // Convert active users to array for the result
-    const activeUsersList = Array.from(activeUsers);
+    // Convert active users map to array and summarize activity counts
+    const activeUsersList = Object.values(activeUsersMap).map(user => {
+      // Count different activity types
+      const activityCounts = {
+        trade_buy: 0,
+        trade_sell: 0,
+        transfer_send: 0,
+        transfer_receive: 0
+      };
+      
+      // Process all activities to calculate counts
+      user.activities.forEach(activity => {
+        if (activity.type in activityCounts) {
+          activityCounts[activity.type]++;
+        }
+      });
+      
+      // Sort activities by timestamp (most recent first)
+      const sortedActivities = [...user.activities].sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Take the most recent 10 activities
+      const recentActivities = sortedActivities.slice(0, 10);
+      
+      return {
+        id: user.address,
+        address: user.address,
+        first_seen: user.first_seen,
+        last_seen: user.last_seen,
+        trades_count: activityCounts.trade_buy + activityCounts.trade_sell,
+        trades_buy_count: activityCounts.trade_buy,
+        trades_sell_count: activityCounts.trade_sell,
+        transfers_count: activityCounts.transfer_send + activityCounts.transfer_receive,
+        transfers_send_count: activityCounts.transfer_send,
+        transfers_receive_count: activityCounts.transfer_receive,
+        recent_activities: recentActivities,
+        total_activities: user.activities.length,
+        network: 'ardor'
+      };
+    });
     
     // Create result object
     const result = {
-      ardor_users: activeUsersList.map(address => ({
-        id: address,
-        address: address,
-        first_seen: new Date().toISOString(),
-        network: 'ardor'
-      })),
+      ardor_users: activeUsersList,
       activeUsers: activeUsersList.length,
       count: activeUsersList.length,
       timestamp: new Date().toISOString(),
