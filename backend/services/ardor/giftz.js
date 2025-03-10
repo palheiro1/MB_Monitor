@@ -7,6 +7,7 @@
 const axios = require('axios');
 const { readJSON, writeJSON } = require('../../utils/jsonStorage');
 const { ARDOR_API_URL, ARDOR_CHAIN_ID } = require('../../config');
+const { getCachedData } = require('../../utils/cacheManager');
 
 // Constants
 const GIFTZ_TOKEN_ID = '13993107092599641878';
@@ -243,64 +244,67 @@ function getPeriodFilter(period) {
  */
 async function getGiftzSales(forceRefresh = false, period = 'all') {
   try {
-    // Check cache first
-    const cacheKey = `ardor_giftz_sales_${period}`;
-    const cachedData = readJSON(cacheKey);
-    if (cachedData && !forceRefresh) {
-      console.log(`Using cached Giftz sales for period ${period} with ${cachedData.count} entries`);
-      return cachedData;
-    }
-    
-    console.log(`Fetching fresh Giftz sales data for period ${period}...`);
-    
-    // Get timestamp cutoff based on period
-    const cutoffTimestamp = getPeriodFilter(period);
-    
-    // Fetch all transfers
-    const allTransfers = await fetchAllTransfers();
-    
-    // Process each transfer to find actual sales
-    console.log(`Processing ${allTransfers.length} transfers to find sales...`);
-    
-    const salesPromises = allTransfers
-      .filter(transfer => 
-        transfer.sender === GIFTZ_DISTRIBUTOR_NUMERIC || 
-        transfer.senderRS === GIFTZ_DISTRIBUTOR
-      )
-      .map(transfer => processGiftzTransfer(transfer));
-    
-    const processedSales = await Promise.all(salesPromises);
-    
-    // Filter out nulls (transfers that weren't sales) and apply period filter
-    const sales = processedSales
-      .filter(sale => sale !== null)
-      .filter(sale => sale.timestamp >= cutoffTimestamp);
-    
-    // Sort by timestamp (newest first)
-    sales.sort((a, b) => b.timestamp - a.timestamp);
-    
-    // Calculate total quantity of GIFTZ tokens transferred in the filtered period
-    const totalQuantity = sales.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
-    
-    // Create result object
-    const result = {
-      sales,
-      count: sales.length,
-      totalQuantity,  // Add the total quantity
-      timestamp: new Date().toISOString(),
-      period
-    };
-    
-    console.log(`Found ${sales.length} valid Giftz sales for period ${period} with total ${totalQuantity} GIFTZ tokens transferred`);
-    
-    // Save to cache
-    writeJSON(cacheKey, result);
-    
-    return result;
+    // Use the unified caching approach with period filtering
+    return await getCachedData(
+      'giftz_sales', // data type
+      period,        // period for filtering
+      fetchGiftzSalesData, // function to fetch fresh data
+      forceRefresh,  // whether to force refresh
+      {
+        // Additional options for filtering
+        timestampField: 'timestamp',
+        dateField: 'timestampISO',
+        dataArrayField: 'sales'
+      }
+    );
   } catch (error) {
     console.error('Error fetching Giftz sales:', error.message);
     throw new Error(`Failed to fetch Giftz sales: ${error.message}`);
   }
+}
+
+/**
+ * Fetch all Giftz sales data (separated for clarity)
+ * @returns {Promise<Object>} All Giftz sales data
+ */
+async function fetchGiftzSalesData() {
+  console.log('Fetching fresh Giftz sales data...');
+  
+  // Fetch all transfers
+  const allTransfers = await fetchAllTransfers();
+  
+  // Process each transfer to find actual sales
+  console.log(`Processing ${allTransfers.length} transfers to find sales...`);
+  
+  const salesPromises = allTransfers
+    .filter(transfer => 
+      transfer.sender === GIFTZ_DISTRIBUTOR_NUMERIC || 
+      transfer.senderRS === GIFTZ_DISTRIBUTOR
+    )
+    .map(transfer => processGiftzTransfer(transfer));
+  
+  const processedSales = await Promise.all(salesPromises);
+  
+  // Filter out nulls (transfers that weren't sales)
+  const sales = processedSales.filter(sale => sale !== null);
+  
+  // Sort by timestamp (newest first)
+  sales.sort((a, b) => b.timestamp - a.timestamp);
+  
+  // Calculate total quantity of GIFTZ tokens transferred
+  const totalQuantity = sales.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
+  
+  // Create result object
+  const result = {
+    sales,
+    count: sales.length,
+    totalQuantity,
+    timestamp: new Date().toISOString()
+  };
+  
+  console.log(`Found ${sales.length} valid Giftz sales with total ${totalQuantity} GIFTZ tokens transferred`);
+  
+  return result;
 }
 
 module.exports = { getGiftzSales };
