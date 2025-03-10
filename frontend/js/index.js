@@ -5,10 +5,11 @@
  * It initializes all required modules and starts the application.
  */
 
-import { initState } from './state/index.js';
+import { initState, setState } from './state/index.js';
 import { setupUI } from './components/ui-manager.js';
 import { initUIUpdater } from './components/ui-updater.js';
 import { fetchAllData } from './data-manager/index.js';
+import { DEFAULT_PERIOD } from './config.js';
 
 /**
  * Initialize the application
@@ -19,6 +20,9 @@ async function initApp() {
   try {
     // Initialize state
     initState();
+    
+    // Explicitly set the current period to match our config
+    setState('currentPeriod', DEFAULT_PERIOD);
     
     // Set up UI elements and event listeners
     setupUI();

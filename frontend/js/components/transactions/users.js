@@ -86,10 +86,12 @@ export function renderUserCards(users, container, newItemIds = []) {
  * @returns {Array} Array of new user IDs
  */
 export function findNewUsers(previousUsers, currentUsers) {
-  if (!previousUsers || !currentUsers) return [];
+  // Make sure both inputs are arrays
+  if (!Array.isArray(previousUsers)) previousUsers = [];
+  if (!Array.isArray(currentUsers)) currentUsers = [];
   
-  const previousIds = new Set(previousUsers.map(user => user.id));
+  const previousIds = new Set(previousUsers.map(user => user.address || user.id));
   return currentUsers
-    .filter(user => !previousIds.has(user.id))
-    .map(user => user.id);
+    .filter(user => !previousIds.has(user.address || user.id))
+    .map(user => user.address || user.id);
 }

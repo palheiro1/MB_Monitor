@@ -31,14 +31,31 @@ function formatCraftDetails(craft) {
 }
 
 /**
- * Render a list of craft cards into the container
- * @param {HTMLElement} container - Container element
- * @param {Array} crafts - Array of craft operations
- * @param {Object} options - Rendering options
+ * Render craft cards
+ * 
+ * @param {Array} crafts - Array of craft objects
+ * @param {HTMLElement} container - Container to render into
+ * @param {Array} newItemIds - IDs of new items to animate
  */
-export function renderCraftCards(container, crafts, options = {}) {
-  if (!container || !crafts || !Array.isArray(crafts)) {
-    console.error('Invalid arguments provided to renderCraftCards', { container, crafts });
+export function renderCraftCards(crafts, container, newItemIds = []) {
+  console.log('renderCraftCards called with:', { 
+    craftsCount: Array.isArray(crafts) ? crafts.length : 'not array', 
+    container: container?.id || 'missing' 
+  });
+  
+  // Validate parameters
+  if (!container || !container.appendChild) {
+    console.error('Invalid container provided to renderCraftCards', container);
+    return;
+  }
+  
+  if (!Array.isArray(crafts)) {
+    console.error('Invalid crafts array provided to renderCraftCards', crafts);
+    container.innerHTML = `
+      <div class="text-center p-4 text-muted">
+        No crafting operations found
+      </div>
+    `;
     return;
   }
   

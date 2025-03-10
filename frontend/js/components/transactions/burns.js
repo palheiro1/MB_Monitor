@@ -19,14 +19,31 @@ function ardorTimestampToDate(timestamp) {
 }
 
 /**
- * Render burn cards into a container
- * @param {HTMLElement} container - DOM element to render cards into
- * @param {Array} burns - Array of burn transaction objects
- * @param {Array} newItemIds - Array of IDs for new items to highlight
+ * Render burn cards
+ * 
+ * @param {Array} burns - Array of burn objects
+ * @param {HTMLElement} container - Container to render into
+ * @param {Array} newItemIds - IDs of new items to animate
  */
-export function renderBurnCards(container, burns, newItemIds = []) {
-  if (!container || !Array.isArray(burns)) {
-    console.error('Invalid container or burns array', { container, burns });
+export function renderBurnCards(burns, container, newItemIds = []) {
+  console.log('renderBurnCards called with:', { 
+    burnsCount: Array.isArray(burns) ? burns.length : 'not array', 
+    containerId: container?.id || 'missing'
+  });
+  
+  // Validate parameters
+  if (!container || !container.appendChild) {
+    console.error('Invalid container provided to renderBurnCards', container);
+    return;
+  }
+  
+  if (!Array.isArray(burns)) {
+    console.error('Invalid burns array provided to renderBurnCards', burns);
+    container.innerHTML = `
+      <div class="text-center p-4 text-muted">
+        No burn operations found
+      </div>
+    `;
     return;
   }
   

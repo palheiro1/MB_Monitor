@@ -130,7 +130,7 @@ export function renderAllCardsWithAnimation() {
   
   renderCraftCards(
     craftsData.crafts || [], 
-    getElement('crafts-cards'), // Fix: Use hyphenated ID to match HTML
+    getElement('crafts-cards'),
     newCrafts
   );
   
@@ -142,19 +142,23 @@ export function renderAllCardsWithAnimation() {
   
   renderBurnCards(
     burnsData.burns || [], 
-    getElement('burns-cards'), // Fix: Use hyphenated ID to match HTML
+    getElement('burns-cards'),
     newBurns
   );
   
+  // Make sure users data is an array
+  const ardorUsers = Array.isArray(usersData.ardor_users) ? usersData.ardor_users : [];
+  const polygonUsers = Array.isArray(usersData.polygon_users) ? usersData.polygon_users : [];
+  
   renderUserCards(
-    usersData.ardor_users || [], 
+    ardorUsers, 
     getElement('ardor-users-cards'), // Fix: Use hyphenated ID to match HTML
     newUsers
   );
   
   // Use the specialized Polygon renderer for Polygon users
   renderPolygonUserCards(
-    usersData.polygon_users || [], 
+    polygonUsers, 
     getElement('polygon-users-cards'), // Fix: Use hyphenated ID to match HTML
     newPolygonUsers
   );

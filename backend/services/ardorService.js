@@ -12,6 +12,7 @@ const { getMorphings } = require('./ardor/morphing');
 const { getCardBurns, getGEMBurns } = require('./ardor/burns'); // Update to import getGEMBurns
 const { getActiveUsers } = require('./ardor/users');
 const { getTrackedAssets } = require('./ardor/assets');
+const { getGiftzSales } = require('./ardor/giftz'); // Add this line
 
 // Use the same Ardor epoch constant for consistency
 const ARDOR_EPOCH = 1514764800000; // January 1, 2018 00:00:00 UTC in milliseconds
@@ -46,7 +47,7 @@ async function getAllData() {
     if (cachedData) return cachedData;
 
     // Fetch all data in parallel
-    const [trades, primarySales, craftings, morphings, cardBurns, gemBurns, activeUsers, trackedAssets] = 
+    const [trades, primarySales, craftings, morphings, cardBurns, gemBurns, activeUsers, trackedAssets, giftzSales] = 
       await Promise.all([
         getTrades(), 
         getPrimarySales(), 
@@ -55,7 +56,8 @@ async function getAllData() {
         getCardBurns(), 
         getGEMBurns(),
         getActiveUsers(),
-        getTrackedAssets()
+        getTrackedAssets(),
+        getGiftzSales() // Add this
       ]);
 
     const allData = {
@@ -66,6 +68,7 @@ async function getAllData() {
       cardBurns: cardBurns.count,
       gemBurns: gemBurns.count,
       activeUsers: activeUsers.activeUsers,
+      giftzSales: giftzSales.count, // Add this
       trackedAssets: {
         regularCardsCount: trackedAssets.regularCards.length,
         specialCardsCount: trackedAssets.specialCards.length,
@@ -145,6 +148,7 @@ module.exports = {
   getGEMBurns, // Add getGEMBurns to exports
   getActiveUsers,
   getTrackedAssets,
+  getGiftzSales, // Add this line
   getAllData,
   init
 };

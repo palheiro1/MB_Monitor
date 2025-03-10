@@ -47,11 +47,17 @@ export function updateStats(data) {
     }
   }
 
-  // Update giftz sales count
+  // Update giftz sales count - First log data to debug
   if (data.giftzData) {
+    console.log('Giftz data received:', data.giftzData);
     const giftzElement = document.getElementById('giftz-sales');
     if (giftzElement) {
-      giftzElement.textContent = formatNumber(data.giftzData.count || 0);
+      // Try multiple properties to find the correct data
+      const totalQuantity = data.giftzData.totalQuantity || 
+                           (data.giftzData.sales && data.giftzData.sales.reduce((sum, sale) => sum + (sale.quantity || 0), 0)) || 
+                           0;
+      console.log('Calculated Giftz total quantity:', totalQuantity);
+      giftzElement.textContent = formatNumber(totalQuantity);
     }
   }
 

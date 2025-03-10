@@ -8,6 +8,7 @@ import { getState, setState } from '../state/index.js';
 import { updateStats } from '../components/statistics.js';
 import { renderAllCardsWithAnimation } from '../components/transactions/index.js';
 import { updateLastUpdateTimestamp, hideLoading } from '../components/ui-manager.js';
+import { DEFAULT_PERIOD } from '../config.js';
 
 // API endpoints
 const API_BASE = '/api'; // Default base URL
@@ -19,7 +20,8 @@ const API_BASE = '/api'; // Default base URL
  */
 export async function fetchAllData(showLoading = true) {
   try {
-    const period = getState('currentPeriod') || '30d';
+    // Use the DEFAULT_PERIOD from config.js if currentPeriod is not set yet
+    const period = getState('currentPeriod') || DEFAULT_PERIOD;
     console.log(`Fetching all data for period: ${period}`);
     
     // Store current data as previous for comparison
@@ -69,6 +71,7 @@ export async function fetchAllData(showLoading = true) {
       hideLoading();
     }
     
+    // Make sure to return all the fetched data
     return allData;
   } catch (error) {
     console.error('Error fetching data:', error);

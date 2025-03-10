@@ -33,7 +33,7 @@ export const API_CONFIG = {
 
 // Application Settings
 export const REFRESH_INTERVAL = 60000; // Data refresh interval in ms
-export const DEFAULT_PERIOD = '30d';
+export const DEFAULT_PERIOD = 'all'; // Changed from '30d' to 'all'
 export const UI_ANIMATION_ENABLED = true;
 export const CHART_ANIMATION_DURATION = 800;
 export const COUNTER_ANIMATION_DURATION = 1000;

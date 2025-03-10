@@ -216,7 +216,7 @@ function updateLastUpdateTime() {
  */
 function getCurrentPeriod() {
   const activeButton = document.querySelector('.period-selector.active');
-  return activeButton ? activeButton.dataset.period : '30d'; // Default to 30d
+  return activeButton ? activeButton.dataset.period : 'all'; // Default to 'all' instead of '30d'
 }
 
 /**
