@@ -85,6 +85,48 @@ export function updateStatusBadge(status) {
 }
 
 /**
+ * Show an error message to the user
+ * @param {string} message - Error message to display
+ */
+export function showError(message) {
+  console.error(message);
+  
+  // Update status badge to show error
+  const statusBadge = getElement('status-badge');
+  if (statusBadge) {
+    statusBadge.className = 'badge rounded-pill bg-danger me-2';
+    statusBadge.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Error';
+  }
+  
+  // Try to find a toast container
+  const toastContainer = document.getElementById('toast-container');
+  if (toastContainer) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+      <div class="toast-header bg-danger text-white">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <strong class="me-auto">Error</strong>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body">
+        ${message}
+      </div>
+    `;
+    toastContainer.appendChild(toast);
+    
+    // Initialize and show bootstrap toast if available
+    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+      const bsToast = new bootstrap.Toast(toast);
+      bsToast.show();
+    }
+  }
+}
+
+/**
  * Update the last update timestamp in the UI
  */
 export function updateLastUpdateTimestamp() {

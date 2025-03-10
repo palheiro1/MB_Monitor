@@ -25,7 +25,42 @@ export { renderCraftCards, findNewCrafts } from './crafts.js';
  */
 export function initTransactionComponents() {
   // Initialize the assets component
-  initAssetsComponent();
+  try {
+    initAssetsComponent();
+  } catch (err) {
+    console.error('Failed to initialize assets component:', err);
+  }
+}
+
+/**
+ * Safely render a component with error handling
+ * @param {Function} renderFunc - Rendering function
+ * @param {Array} data - Data to render
+ * @param {HTMLElement} container - Container element
+ * @param {Array} newItemIds - IDs of new items
+ * @param {string} componentName - Name for error logging
+ */
+function safeRender(renderFunc, data, container, newItemIds, componentName) {
+  if (!container) {
+    console.warn(`Container for ${componentName} not found`);
+    return;
+  }
+  
+  try {
+    console.log(`Rendering ${componentName} with ${Array.isArray(data) ? data.length : 'unknown'} items`);
+    renderFunc(data || [], container, newItemIds || []);
+  } catch (error) {
+    console.error(`Error rendering ${componentName}:`, error);
+    // Show error in the container for visibility
+    container.innerHTML = `
+      <div class="alert alert-danger">
+        <strong>Error rendering ${componentName}:</strong> ${error.message}
+      </div>
+      <div class="text-center p-4 text-muted">
+        Check the console for detailed error information
+      </div>
+    `;
+  }
 }
 
 /**
@@ -108,59 +143,73 @@ export function renderAllCardsWithAnimation() {
     burns: !!containers.burns
   });
   
-  // Render each type of transaction cards
-  renderTradeCards(
-    tradesData.ardor_trades || [], 
-    getElement('ardor-trades-cards'), // Fix: Use hyphenated ID to match HTML
-    newArdorTrades
+  // Render each type of transaction cards with safety wrappers
+  safeRender(
+    renderTradeCards, 
+    tradesData.ardor_trades, 
+    getElement('ardor-trades-cards'),
+    newArdorTrades,
+    'Ardor Trades'
   );
   
-  // Use the specialized Polygon renderer for Polygon trades
-  renderPolygonTradeCards(
-    tradesData.polygon_trades || [], 
-    getElement('polygon-trades-cards'), // Fix: Use hyphenated ID to match HTML
-    newPolygonTrades
+  safeRender(
+    renderPolygonTradeCards, 
+    tradesData.polygon_trades, 
+    getElement('polygon-trades-cards'),
+    newPolygonTrades,
+    'Polygon Trades'
   );
   
-  renderGiftzCards(
-    giftzData.sales || [], 
-    getElement('giftz-cards'), // Fix: Use hyphenated ID to match HTML
-    newGiftzSales
+  safeRender(
+    renderGiftzCards, 
+    giftzData.sales, 
+    getElement('giftz-cards'),
+    newGiftzSales,
+    'Giftz Sales'
   );
   
-  renderCraftCards(
-    craftsData.crafts || [], 
+  safeRender(
+    renderCraftCards, 
+    craftsData.crafts, 
     getElement('crafts-cards'),
-    newCrafts
+    newCrafts,
+    'Crafts'
   );
   
-  renderMorphCards(
-    morphsData.morphs || [], 
-    getElement('morphs-cards'), // Fix: Use hyphenated ID to match HTML
-    newMorphs
+  safeRender(
+    renderMorphCards, 
+    morphsData.morphs, 
+    getElement('morphs-cards'),
+    newMorphs,
+    'Morphs'
   );
   
-  renderBurnCards(
-    burnsData.burns || [], 
+  safeRender(
+    renderBurnCards, 
+    burnsData.burns, 
     getElement('burns-cards'),
-    newBurns
+    newBurns,
+    'Burns'
   );
   
   // Make sure users data is an array
   const ardorUsers = Array.isArray(usersData.ardor_users) ? usersData.ardor_users : [];
   const polygonUsers = Array.isArray(usersData.polygon_users) ? usersData.polygon_users : [];
   
-  renderUserCards(
+  safeRender(
+    renderUserCards,
     ardorUsers, 
-    getElement('ardor-users-cards'), // Fix: Use hyphenated ID to match HTML
-    newUsers
+    getElement('ardor-users-cards'),
+    newUsers,
+    'Ardor Users'
   );
   
-  // Use the specialized Polygon renderer for Polygon users
-  renderPolygonUserCards(
+  safeRender(
+    renderPolygonUserCards,
     polygonUsers, 
-    getElement('polygon-users-cards'), // Fix: Use hyphenated ID to match HTML
-    newPolygonUsers
+    getElement('polygon-users-cards'),
+    newPolygonUsers,
+    'Polygon Users'
   );
   
   // Return stats about new items

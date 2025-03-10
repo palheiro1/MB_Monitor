@@ -36,8 +36,9 @@ function formatCraftDetails(craft) {
  * @param {Array} crafts - Array of craft objects
  * @param {HTMLElement} container - Container to render into
  * @param {Array} newItemIds - IDs of new items to animate
+ * @param {Object} options - Optional rendering settings
  */
-export function renderCraftCards(crafts, container, newItemIds = []) {
+export function renderCraftCards(crafts, container, newItemIds = [], options = {}) {
   console.log('renderCraftCards called with:', { 
     craftsCount: Array.isArray(crafts) ? crafts.length : 'not array', 
     container: container?.id || 'missing' 
@@ -66,6 +67,24 @@ export function renderCraftCards(crafts, container, newItemIds = []) {
   const template = document.getElementById('craft-card-template');
   if (!template) {
     console.error('Craft card template not found');
+    container.innerHTML = `
+      <div class="text-center p-4 text-muted">
+        Error: Craft card template not found
+      </div>
+    `;
+    return;
+  }
+  
+  // Clear the container first
+  container.innerHTML = '';
+  
+  // Show message if no crafts
+  if (crafts.length === 0) {
+    container.innerHTML = `
+      <div class="text-center p-4 text-muted">
+        No crafting operations found
+      </div>
+    `;
     return;
   }
   
@@ -78,31 +97,35 @@ export function renderCraftCards(crafts, container, newItemIds = []) {
   // Process each craft
   crafts.forEach(craft => {
     try {
-      const formattedCraft = formatCraftDetails(craft);
-      
       // Clone the template
       const card = template.content.cloneNode(true);
       
-      // Set the card data
-      card.querySelector('.card-name').textContent = formattedCraft.cardName;
-      card.querySelector('.transaction-time').textContent = formattedCraft.timeAgo;
-      card.querySelector('.crafter-name').textContent = formattedCraft.crafterName;
-      card.querySelector('.craft-result').textContent = formattedCraft.craftResult;
-      
-      // Add CSS class based on card rarity
-      const cardElement = card.querySelector('.craft-card');
-      if (formattedCraft.cardRarity) {
-        cardElement.classList.add(`rarity-${formattedCraft.cardRarity.toLowerCase().replace(/\s+/g, '-')}`);
+      // Set card data - use simplified approach to avoid errors
+      const cardNameEl = card.querySelector('.card-name');
+      if (cardNameEl) {
+        cardNameEl.textContent = craft.cardName || craft.assetName || 'Unknown Card';
       }
       
-      // Add data attributes for filtering/sorting
-      cardElement.dataset.id = formattedCraft.id;
-      cardElement.dataset.timestamp = formattedCraft.timestamp;
-      cardElement.dataset.cardName = formattedCraft.cardName;
-      cardElement.dataset.crafter = formattedCraft.crafter;
+      const timeElement = card.querySelector('.transaction-time');
+      if (timeElement) {
+        timeElement.textContent = formatTimeAgo(craft.date || craft.timestamp);
+      }
+      
+      const crafterElement = card.querySelector('.crafter-name');
+      if (crafterElement) {
+        crafterElement.textContent = craft.recipient ? 
+          (craft.recipient.slice(0, 6) + '...' + craft.recipient.slice(-5)) : 
+          'Unknown';
+      }
+      
+      const craftResultElement = card.querySelector('.craft-result');
+      if (craftResultElement) {
+        craftResultElement.textContent = craft.cardName || craft.assetName || 'Unknown Card';
+      }
       
       // Add animation class if needed
-      if (animateEntrance) {
+      const cardElement = card.querySelector('.transaction-card');
+      if (cardElement && animateEntrance) {
         cardElement.classList.add('animate__animated', 'animate__fadeInRight');
       }
       
@@ -117,17 +140,20 @@ export function renderCraftCards(crafts, container, newItemIds = []) {
 
 /**
  * Find new craft operations not present in the current cache
- * @param {Array} craftings - New crafting operations
- * @returns {Array} New craft operations not present in cache
+ * @param {Array} previousCrafts - Previously displayed crafts
+ * @param {Array} currentCrafts - Current crafting operations 
+ * @returns {Array} New craft IDs
  */
-export function findNewCrafts(craftings) {
-  if (!craftings || !Array.isArray(craftings)) {
+export function findNewCrafts(previousCrafts, currentCrafts) {
+  if (!Array.isArray(previousCrafts) || !Array.isArray(currentCrafts)) {
     return [];
   }
   
   // Store all existing IDs for quick lookup
-  const existingIds = new Set(craftCache.map(craft => craft.id));
+  const existingIds = new Set((previousCrafts || []).map(craft => craft.id));
   
-  // Filter out only the new crafts
-  return craftings.filter(craft => !existingIds.has(craft.id));
+  // Filter out only the new craft IDs
+  return currentCrafts
+    .filter(craft => craft.id && !existingIds.has(craft.id))
+    .map(craft => craft.id);
 }

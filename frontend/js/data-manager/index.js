@@ -7,7 +7,7 @@
 import { getState, setState } from '../state/index.js';
 import { updateStats } from '../components/statistics.js';
 import { renderAllCardsWithAnimation } from '../components/transactions/index.js';
-import { updateLastUpdateTimestamp, hideLoading } from '../components/ui-manager.js';
+import { updateLastUpdateTimestamp, hideLoading, showError } from '../components/ui-manager.js';
 import { DEFAULT_PERIOD } from '../config.js';
 
 // API endpoints
@@ -31,7 +31,7 @@ export async function fetchAllData(showLoading = true) {
     }
     
     // Fetch all data in parallel, using the current period
-    const [tradesData, craftsData, morphsData, burnsData, usersData, giftzData] = await Promise.all([
+    const results = await Promise.allSettled([
       fetchEndpoint(`/trades?period=${period}`),
       fetchEndpoint(`/crafts?period=${period}`),
       fetchEndpoint(`/morphs?period=${period}`),
@@ -39,6 +39,51 @@ export async function fetchAllData(showLoading = true) {
       fetchEndpoint(`/users?period=${period}`),
       fetchEndpoint(`/giftz?period=${period}`)
     ]);
+    
+    // Destructure results with better error handling
+    const [
+      tradesResult, 
+      craftsResult, 
+      morphsResult, 
+      burnsResult, 
+      usersResult, 
+      giftzResult
+    ] = results;
+    
+    // Process results with detailed logging
+    const tradesData = processResult(tradesResult, 'trades');
+    const craftsData = processResult(craftsResult, 'crafts');
+    const morphsData = processResult(morphsResult, 'morphs');
+    const burnsData = processResult(burnsResult, 'burns');
+    const usersData = processResult(usersResult, 'users');
+    const giftzData = processResult(giftzResult, 'giftz');
+    
+    // Log data structure details for diagnostics
+    console.log('Data structure summary:', {
+      trades: {
+        hasData: !!tradesData,
+        ardorTrades: tradesData?.ardor_trades?.length || 0,
+        polygonTrades: tradesData?.polygon_trades?.length || 0
+      },
+      crafts: {
+        hasData: !!craftsData,
+        count: craftsData?.count || 0,
+        craftsArray: Array.isArray(craftsData?.crafts),
+        craftsLength: craftsData?.crafts?.length || 0
+      },
+      morphs: {
+        hasData: !!morphsData,
+        count: morphsData?.count || 0,
+        morphsArray: Array.isArray(morphsData?.morphs),
+        morphsLength: morphsData?.morphs?.length || 0
+      },
+      burns: {
+        hasData: !!burnsData,
+        count: burnsData?.count || 0,
+        burnsArray: Array.isArray(burnsData?.burns),
+        burnsLength: burnsData?.burns?.length || 0
+      }
+    });
     
     // Combine into a single data object
     const allData = {
@@ -57,9 +102,11 @@ export async function fetchAllData(showLoading = true) {
     // Update stats and UI
     updateStats(allData);
     
-    // Only call these functions if they exist
-    if (typeof renderAllCardsWithAnimation === 'function') {
+    try {
       renderAllCardsWithAnimation();
+    } catch (renderError) {
+      console.error('Error rendering cards:', renderError);
+      showError('Error displaying data. Please check console for details.');
     }
     
     if (typeof updateLastUpdateTimestamp === 'function') {
@@ -78,7 +125,26 @@ export async function fetchAllData(showLoading = true) {
     if (showLoading && typeof hideLoading === 'function') {
       hideLoading();
     }
+    showError('Failed to fetch data from server');
     return {};
+  }
+}
+
+/**
+ * Process API result with error handling
+ * @param {Object} result - Promise.allSettled result
+ * @param {string} endpoint - Endpoint name for logging
+ * @returns {Object|null} The data or null if error
+ */
+function processResult(result, endpoint) {
+  if (result.status === 'fulfilled') {
+    if (Object.keys(result.value).length === 0) {
+      console.warn(`${endpoint} returned empty data`);
+    }
+    return result.value;
+  } else {
+    console.error(`Error fetching ${endpoint}:`, result.reason);
+    return null;
   }
 }
 
@@ -92,10 +158,20 @@ async function fetchEndpoint(endpoint) {
     const response = await fetch(`${API_BASE}${endpoint}`);
     
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      console.error(`API error for ${endpoint}: ${response.status} ${response.statusText}`);
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
     
-    return await response.json();
+    const data = await response.json();
+    
+    // Log data structure for debugging
+    console.log(`Data received from ${endpoint}:`, {
+      hasData: !!data,
+      keys: data ? Object.keys(data) : [],
+      count: data?.count || 0
+    });
+    
+    return data;
   } catch (error) {
     console.error(`Error fetching from ${endpoint}:`, error);
     return {};
