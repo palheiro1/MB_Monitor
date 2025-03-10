@@ -7,19 +7,16 @@
 const ARDOR_EPOCH = new Date("2018-01-01T00:00:00Z").getTime();
 
 /**
- * Format address for display
+ * Format address for display - NO LONGER SHORTENS ADDRESSES
  * 
  * @param {string} address - Blockchain address
- * @returns {string} Shortened address
+ * @returns {string} Complete address (no longer shortened)
  */
 export function formatAddress(address) {
   if (!address) return 'Unknown';
   
-  // If it's already short, return as is
-  if (address.length < 15) return address;
-  
-  // Otherwise truncate
-  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  // Return the complete address as per user preference
+  return address;
 }
 
 /**
@@ -141,16 +138,25 @@ export function formatTimeAgo(date) {
       return 'just now';
     }
     if (secondsPast < 3600) {
-      return `${Math.floor(secondsPast / 60)} min ago`;
+      const minutes = Math.floor(secondsPast / 60);
+      return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
     }
     if (secondsPast < 86400) {
-      return `${Math.floor(secondsPast / 3600)} hrs ago`;
+      const hours = Math.floor(secondsPast / 3600);
+      return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
     }
     if (secondsPast < 604800) {
-      return `${Math.floor(secondsPast / 86400)} days ago`;
+      const days = Math.floor(secondsPast / 86400);
+      return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+    }
+    if (secondsPast < 2419200) {
+      const weeks = Math.floor(secondsPast / 604800);
+      return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
     }
     
-    return past.toLocaleDateString();
+    // For older dates, show "X months ago"
+    const months = Math.floor(secondsPast / 2592000);
+    return `${months} ${months === 1 ? 'month' : 'months'} ago`;
   } catch (error) {
     console.error('Error formatting time ago:', error);
     return 'Unknown time';

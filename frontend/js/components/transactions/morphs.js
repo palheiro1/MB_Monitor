@@ -78,23 +78,37 @@ export function renderMorphCards(morphs, container, newItemIds = []) {
   
   // Create and append morph cards
   filteredMorphs.forEach(morph => {
-    const card = document.importNode(template.content, true);
-    
-    // Set card data
-    card.querySelector('.card-name').textContent = morph.to_card || 'Morphed Card';
-    card.querySelector('.morpher-name').textContent = formatAddress(morph.morpher);
-    card.querySelector('.from-card').textContent = morph.from_card || 'Original Card';
-    card.querySelector('.to-card').textContent = morph.to_card || 'New Card';
-    card.querySelector('.transaction-time').textContent = formatDateTime(morph.timestamp);
-    
-    // Add animation class for new items
-    const cardElement = card.querySelector('.transaction-card');
-    if (getState('animationsEnabled') && newItemIds.includes(morph.id)) {
-      cardElement.classList.add('new-item-animation');
+    try {
+      const card = document.importNode(template.content, true);
+      
+      // Safely set card data with null checks
+      const cardNameEl = card.querySelector('.card-name');
+      if (cardNameEl) {
+        cardNameEl.textContent = morph.to_card || 'Morphed Card';
+      }
+      
+      const morpherNameEl = card.querySelector('.morpher-name');
+      if (morpherNameEl) {
+        // Use complete address instead of formatted
+        morpherNameEl.textContent = morph.morpher || 'Unknown';
+      }
+      
+      const timeEl = card.querySelector('.transaction-time');
+      if (timeEl) {
+        timeEl.textContent = formatTimeAgo(morph.timestamp);
+      }
+      
+      // Add animation class for new items
+      const cardElement = card.querySelector('.transaction-card');
+      if (cardElement && getState('animationsEnabled') && newItemIds.includes(morph.id)) {
+        cardElement.classList.add('new-item-animation');
+      }
+      
+      // Append card to container
+      container.appendChild(card);
+    } catch (error) {
+      console.error('Error rendering morph card:', error, morph);
     }
-    
-    // Append card to container
-    container.appendChild(card);
   });
 }
 

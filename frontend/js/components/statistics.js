@@ -37,7 +37,14 @@ export function updateStats(data) {
   if (data.craftsData) {
     const craftsElement = document.getElementById('card-crafts');
     if (craftsElement) {
-      craftsElement.textContent = formatNumber(data.craftsData.count || 0);
+      // Use count directly first, or try to count array items if available
+      const craftsCount = data.craftsData.count || 
+                         (data.craftsData.crafts && data.craftsData.crafts.length) || 
+                         (data.craftsData.craftings && data.craftsData.craftings.length) || 
+                         0;
+      
+      craftsElement.textContent = formatNumber(craftsCount);
+      console.log(`Updated crafts count: ${craftsCount}`);
     }
   }
 

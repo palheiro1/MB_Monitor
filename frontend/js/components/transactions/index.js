@@ -77,10 +77,23 @@ export function renderAllCardsWithAnimation() {
   const burnsData = getState('currentData.burnsData') || {};
   const usersData = getState('currentData.usersData') || {};
   
+  // Debug the craftsData structure to understand what's available
+  console.log('Crafts data structure:', {
+    hasData: !!craftsData,
+    keys: Object.keys(craftsData),
+    craftsArray: Array.isArray(craftsData.crafts),
+    craftsLength: craftsData.crafts?.length,
+    craftings: craftsData.craftings?.length,  // Check if it's using 'craftings' property instead
+    count: craftsData.count
+  });
+  
+  // Use correct property for crafts (either 'crafts' or 'craftings')
+  const craftsList = craftsData.crafts || craftsData.craftings || [];
+  
   console.log('Data available for rendering:', {
     ardorTrades: tradesData.ardor_trades?.length || 0,
     morphs: morphsData.morphs?.length || 0,
-    crafts: craftsData.crafts?.length || 0,
+    crafts: craftsList.length,
     burns: burnsData.burns?.length || 0
   });
   
@@ -104,8 +117,8 @@ export function renderAllCardsWithAnimation() {
   );
   
   const newCrafts = findNewCrafts(
-    prevData.craftsData?.crafts || [], 
-    craftsData.crafts || []
+    prevData.craftsData?.crafts || prevData.craftsData?.craftings || [], 
+    craftsList
   );
   
   const newMorphs = findNewMorphs(
@@ -170,7 +183,7 @@ export function renderAllCardsWithAnimation() {
   
   safeRender(
     renderCraftCards, 
-    craftsData.crafts, 
+    craftsList, 
     getElement('crafts-cards'),
     newCrafts,
     'Crafts'
@@ -240,6 +253,9 @@ export function renderAllCards() {
   const burnsData = getState('currentData.burnsData') || {};
   const usersData = getState('currentData.usersData') || {};
   
+  // Use correct property for crafts (either 'crafts' or 'craftings')
+  const craftsList = craftsData.crafts || craftsData.craftings || [];
+  
   // Render each type of transaction cards without animations
   renderTradeCards(
     tradesData.ardor_trades || [], 
@@ -260,7 +276,7 @@ export function renderAllCards() {
   );
   
   renderCraftCards(
-    craftsData.crafts || [], 
+    craftsList, 
     getElement('crafts-cards'), // Fix: Use hyphenated ID to match HTML
     []
   );
@@ -307,7 +323,7 @@ export function getTransactionCounts() {
     ardorTrades: (tradesData.ardor_trades || []).length,
     polygonTrades: (tradesData.polygon_trades || []).length,
     giftzSales: (giftzData.sales || []).length,
-    crafts: (craftsData.crafts || []).length,
+    crafts: (craftsData.crafts || craftsData.craftings || []).length,
     morphs: (morphsData.morphs || []).length,
     burns: (burnsData.burns || []).length,
     ardorUsers: (usersData.ardor_users || []).length,

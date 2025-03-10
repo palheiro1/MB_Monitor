@@ -113,9 +113,8 @@ export function renderCraftCards(crafts, container, newItemIds = [], options = {
       
       const crafterElement = card.querySelector('.crafter-name');
       if (crafterElement) {
-        crafterElement.textContent = craft.recipient ? 
-          (craft.recipient.slice(0, 6) + '...' + craft.recipient.slice(-5)) : 
-          'Unknown';
+        // Display complete address
+        crafterElement.textContent = craft.recipient || 'Unknown';
       }
       
       const craftResultElement = card.querySelector('.craft-result');

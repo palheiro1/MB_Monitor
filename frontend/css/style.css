@@ -1,0 +1,154 @@
+/* ...existing code... */
+
+/* Enhanced Trade Card Styling */
+.trade-card .trade-specifics {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0;
+  padding: 5px 0;
+  border-top: 1px solid rgba(0,0,0,0.1);
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.trade-card .price-tag {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: #28a745;
+}
+
+.trade-card .price-tag i {
+  margin-right: 5px;
+}
+
+.trade-card .quantity-tag {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: #6c757d;
+}
+
+.trade-card .quantity-tag i {
+  margin-right: 5px;
+}
+
+.trade-card .currency {
+  font-size: 0.85em;
+  color: #6c757d;
+  margin-left: 3px;
+}
+
+.trade-card .trade-date {
+  text-align: right;
+  font-size: 0.85em;
+  color: #6c757d;
+  margin-top: 5px;
+}
+
+.trade-card .trade-date i {
+  margin-right: 4px;
+}
+
+/* Adding some hover effects */
+.trade-card:hover .price-tag {
+  color: #218838;
+}
+
+/* Giftz Card Styling */
+.giftz-card .quantity-tag {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: #6f42c1;
+  margin-top: 8px;
+}
+
+.giftz-card .quantity-tag i {
+  margin-right: 5px;
+}
+
+/* Rarity Badge Styles */
+.rarity-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  margin-left: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rarity-common {
+  background-color: #78909c;
+  color: #fff;
+}
+
+.rarity-rare {
+  background-color: #5c6bc0;
+  color: #fff;
+}
+
+.rarity-epic {
+  background-color: #8e24aa;
+  color: #fff;
+  animation: glow 1.5s ease-in-out infinite alternate;
+}
+
+.rarity-unknown {
+  background-color: #9e9e9e;
+  color: #fff;
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 2px #8e24aa;
+  }
+  to {
+    box-shadow: 0 0 6px #ce93d8;
+  }
+}
+
+/* Burns Card Specific Styling */
+.burn-card .burn-amount {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  font-weight: 500;
+  color: #e53935;
+}
+
+.burn-card .burn-amount i {
+  margin-right: 6px;
+}
+
+/* Card Rarity Styling */
+.burn-card .card-rarity {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+.burn-card .card-rarity i {
+  margin-right: 6px;
+}
+
+.burn-card .rarity-common {
+  color: #78909c;
+}
+
+.burn-card .rarity-rare {
+  color: #5c6bc0;
+}
+
+.burn-card .rarity-epic {
+  color: #8e24aa;
+  text-shadow: 0 0 3px rgba(142, 36, 170, 0.4);
+}
+
+.burn-card .rarity-unknown {
+  color: #9e9e9e;
+}
+
+/* ...existing code... */

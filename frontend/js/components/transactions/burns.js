@@ -19,6 +19,89 @@ function ardorTimestampToDate(timestamp) {
 }
 
 /**
+ * Extract card info from asset description JSON
+ * @param {Object} burn - Burn object
+ * @returns {Object} Card info object with name and rarity
+ */
+function extractCardInfo(burn) {
+  const result = {
+    name: 'Unknown Card',
+    rarity: 'unknown'
+  };
+  
+  try {
+    // Try to find assetDescription or description field
+    const description = burn.assetDescription || burn.description;
+    
+    if (description) {
+      // Check if it's already a parsed object or needs parsing
+      let descriptionObj;
+      if (typeof description === 'string') {
+        try {
+          descriptionObj = JSON.parse(description);
+        } catch (e) {
+          // Not JSON, leave as is
+          descriptionObj = null;
+        }
+      } else if (typeof description === 'object') {
+        descriptionObj = description;
+      }
+      
+      // Extract name and rarity if we have a valid object
+      if (descriptionObj && descriptionObj.name) {
+        result.name = descriptionObj.name;
+      }
+      
+      if (descriptionObj && descriptionObj.rarity) {
+        result.rarity = descriptionObj.rarity;
+      }
+    }
+    
+    // Fall back to asset name if no name was found in description
+    if (result.name === 'Unknown Card') {
+      result.name = burn.card_name || burn.cardName || burn.assetName || 'Unknown Card';
+    }
+  } catch (error) {
+    console.error('Error extracting card info:', error, burn);
+  }
+  
+  return result;
+}
+
+/**
+ * Get rarity CSS class
+ * @param {string} rarity - Card rarity
+ * @returns {string} CSS class for the rarity
+ */
+function getRarityClass(rarity) {
+  if (!rarity) return 'rarity-unknown';
+  
+  const normalizedRarity = rarity.toLowerCase();
+  
+  if (normalizedRarity === 'common') return 'rarity-common';
+  if (normalizedRarity === 'rare') return 'rarity-rare';
+  if (normalizedRarity === 'very rare' || normalizedRarity === 'epic') return 'rarity-epic';
+  
+  return 'rarity-unknown';
+}
+
+/**
+ * Format rarity for display
+ * @param {string} rarity - Original rarity string
+ * @returns {string} Formatted rarity for display
+ */
+function formatRarity(rarity) {
+  if (!rarity) return 'Unknown';
+  
+  const normalizedRarity = rarity.toLowerCase();
+  
+  if (normalizedRarity === 'very rare') return 'Epic';
+  
+  // Capitalize first letter
+  return normalizedRarity.charAt(0).toUpperCase() + normalizedRarity.slice(1);
+}
+
+/**
  * Render burn cards
  * 
  * @param {Array} burns - Array of burn objects
@@ -69,15 +152,19 @@ export function renderBurnCards(burns, container, newItemIds = []) {
     try {
       const card = document.importNode(template.content, true);
       
-      // Set card data
+      // Extract card info from assetDescription
+      const cardInfo = extractCardInfo(burn);
+      
+      // Set card name (without rarity badge)
       const cardNameEl = card.querySelector('.card-name');
       if (cardNameEl) {
-        cardNameEl.textContent = burn.cardName || burn.assetName || 'Unknown Card';
+        cardNameEl.textContent = cardInfo.name;
       }
       
       const burnerNameEl = card.querySelector('.burner-name');
       if (burnerNameEl) {
-        burnerNameEl.textContent = formatAddress(burn.sender || burn.senderRS || 'Unknown');
+        // Use complete address without shortening
+        burnerNameEl.textContent = burn.sender || burn.senderRS || 'Unknown';
       }
       
       // Set transaction time
@@ -104,6 +191,27 @@ export function renderBurnCards(burns, container, newItemIds = []) {
       const amountEl = card.querySelector('.amount');
       if (amountEl) {
         amountEl.textContent = burn.quantityQNT || burn.quantityFormatted || '1';
+      }
+      
+      // Add rarity field below amount
+      const detailsEl = card.querySelector('.transaction-details');
+      if (detailsEl) {
+        // Create rarity element
+        const rarityEl = document.createElement('div');
+        rarityEl.className = `card-rarity ${getRarityClass(cardInfo.rarity)}`;
+        
+        // Create icon
+        const rarityIcon = document.createElement('i');
+        rarityIcon.className = 'fas fa-crown';
+        rarityEl.appendChild(rarityIcon);
+        
+        // Add text
+        const rarityText = document.createElement('span');
+        rarityText.textContent = ` Rarity: ${formatRarity(cardInfo.rarity)}`;
+        rarityEl.appendChild(rarityText);
+        
+        // Add to the card
+        detailsEl.appendChild(rarityEl);
       }
       
       // Add to container

@@ -141,6 +141,26 @@ function processResult(result, endpoint) {
     if (Object.keys(result.value).length === 0) {
       console.warn(`${endpoint} returned empty data`);
     }
+    
+    // Special processing for crafts endpoint
+    if (endpoint === 'crafts' && result.value) {
+      // Log the structure
+      console.log(`Crafts data structure from API:`, {
+        hasCrafts: Array.isArray(result.value.crafts),
+        hasCraftings: Array.isArray(result.value.craftings),
+        craftCount: (result.value.crafts || []).length,
+        craftingsCount: (result.value.craftings || []).length,
+        count: result.value.count
+      });
+      
+      // Ensure both properties exist
+      if (Array.isArray(result.value.craftings) && !Array.isArray(result.value.crafts)) {
+        result.value.crafts = result.value.craftings;
+      } else if (Array.isArray(result.value.crafts) && !Array.isArray(result.value.craftings)) {
+        result.value.craftings = result.value.crafts;
+      }
+    }
+    
     return result.value;
   } else {
     console.error(`Error fetching ${endpoint}:`, result.reason);

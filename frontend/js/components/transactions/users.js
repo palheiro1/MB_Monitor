@@ -5,7 +5,7 @@
  */
 
 import { getState } from '../../state/index.js';
-import { formatAddress, formatDate } from '../../utils/formatters.js';
+import { formatAddress, formatDate, formatTimeAgo } from '../../utils/formatters.js';
 
 /**
  * Render user cards
@@ -60,12 +60,12 @@ export function renderUserCards(users, container, newItemIds = []) {
   filteredUsers.forEach(user => {
     const card = document.importNode(template.content, true);
     
-    // Set card data
-    card.querySelector('.user-name').textContent = user.name || formatAddress(user.address);
+    // Set card data - Use complete address
+    card.querySelector('.user-name').textContent = user.name || user.address || 'Unknown User';
     card.querySelector('.trades-count').textContent = user.trades_count || 0;
     card.querySelector('.crafts-count').textContent = user.crafts_count || 0;
     card.querySelector('.burns-count').textContent = user.burns_count || 0;
-    card.querySelector('.user-since').textContent = formatDate(user.first_seen);
+    card.querySelector('.user-since').textContent = formatTimeAgo(user.first_seen);
     
     // Add animation class for new items
     const cardElement = card.querySelector('.transaction-card');

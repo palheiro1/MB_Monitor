@@ -134,8 +134,8 @@ export function updateLastUpdateTimestamp() {
   if (lastUpdateElement) {
     const now = new Date();
     lastUpdateElement.textContent = now.toLocaleTimeString();
+    setState('lastUpdate', now.toISOString());
   }
-  setState('lastUpdate', now.toISOString());
 }
 
 /**
