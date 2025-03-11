@@ -5,14 +5,22 @@
 
 // Import various service modules
 const { getTrackedAssets } = require('./ardor/assets');
-const { getCardBurns } = require('./ardor/burns');
-const { getTrades } = require('./ardor/trades');         // Confirm this is getTrades, not getArdorTrades
-const { getCraftings } = require('./ardor/crafting');    // Fixed: was 'crafts', now 'crafting'
-const { getMorphings } = require('./ardor/morphing');
+const { getCardBurns: getOriginalCardBurns } = require('./ardor/burns'); // Rename the import
+const { getTrades: getOriginalTrades } = require('./ardor/trades');
+const { getCraftings: getOriginalCraftings } = require('./ardor/crafting');
+const { getMorphings: getOriginalMorphings } = require('./ardor/morphing');
 const { getGiftzSales } = require('./ardor/giftz');
 const { getActiveUsers } = require('./ardor/users');
 const { CACHE_TTL } = require('../config'); // Add this import
 const { readJSON, writeJSON } = require('../utils/jsonStorage');
+const cacheService = require('./cacheService');
+const { 
+  CACHE_PREFIXES,
+  createCacheKey, 
+  createCacheMetadata,
+  filterByPeriod,
+  normalizeTimestamp
+} = require('../utils/cacheUtils');
 
 // Use the same Ardor epoch constant for consistency
 const ARDOR_EPOCH = 1514764800000; // January 1, 2018 00:00:00 UTC in milliseconds
@@ -88,6 +96,338 @@ async function getAllData() {
 }
 
 /**
+ * Get all card burns with improved caching
+ * @param {boolean} forceRefresh - Whether to force a refresh of the cache
+ * @returns {Promise<Object>} Burns data
+ */
+async function getCardBurns(forceRefresh = false) {
+  const cacheKey = CACHE_PREFIXES.BURNS;
+  
+  try {
+    // Check cache first unless refresh is forced
+    if (!forceRefresh) {
+      const cachedData = cacheService.file.read(cacheKey);
+      if (cachedData && cacheService.isCacheValid(cachedData)) {
+        console.log('Using cached card burns data');
+        return cachedData;
+      }
+    }
+    
+    console.log('Fetching fresh card burns data');
+    // Call the original function from burns.js
+    const result = await getOriginalCardBurns(forceRefresh);
+    
+    if (!result || !result.burns) {
+      throw new Error('Failed to fetch burns data');
+    }
+    
+    // Cache the results with proper metadata
+    const resultWithMetadata = {
+      ...result,
+      ...createCacheMetadata(null, result.burns.length)
+    };
+    
+    cacheService.file.write(cacheKey, resultWithMetadata);
+    return resultWithMetadata;
+  } catch (error) {
+    console.error('Error fetching card burns:', error);
+    
+    // Return cached data on error if available
+    const cachedData = cacheService.file.read(cacheKey);
+    if (cachedData) {
+      console.log('Returning cached burns data after fetch error');
+      return {
+        ...cachedData,
+        fetchError: error.message
+      };
+    }
+    
+    // Otherwise return empty result
+    return {
+      burns: [],
+      count: 0,
+      ...createCacheMetadata(),
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Get trades with improved caching
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @param {boolean} forceRefresh - Whether to force refresh cache
+ * @returns {Promise<Object>} Trade data
+ */
+async function getTrades(period = 'all', forceRefresh = false) {
+  const cacheKey = CACHE_PREFIXES.TRADES;
+  
+  try {
+    // Check cache first unless refresh is forced
+    if (!forceRefresh) {
+      const cachedData = cacheService.file.read(cacheKey);
+      if (cachedData && cacheService.isCacheValid(cachedData)) {
+        console.log('Using cached trades data and applying period filter');
+        // Filter the cached data by period
+        const filteredData = { 
+          ...cachedData,
+          ardor_trades: filterByPeriod(
+            cachedData.ardor_trades, 
+            period, 
+            { timestampField: 'timestamp' }
+          )
+        };
+        
+        // Update the count to match filtered data
+        filteredData.count = filteredData.ardor_trades.length;
+        return filteredData;
+      }
+    }
+    
+    console.log('Fetching fresh trade data');
+    // Call the original function
+    const result = await getOriginalTrades(period, forceRefresh);
+    
+    // Cache the results with metadata
+    const resultWithMetadata = {
+      ...result,
+      ...createCacheMetadata('all', result.ardor_trades ? result.ardor_trades.length : 0)
+    };
+    
+    cacheService.file.write(cacheKey, resultWithMetadata);
+    
+    // Filter if period is not 'all'
+    if (period !== 'all') {
+      const filteredData = { 
+        ...resultWithMetadata,
+        ardor_trades: filterByPeriod(
+          resultWithMetadata.ardor_trades, 
+          period, 
+          { timestampField: 'timestamp' }
+        )
+      };
+      
+      filteredData.count = filteredData.ardor_trades.length;
+      return filteredData;
+    }
+    
+    return resultWithMetadata;
+  } catch (error) {
+    console.error('Error fetching trades:', error);
+    
+    // Return cached data on error if available
+    const cachedData = cacheService.file.read(cacheKey);
+    if (cachedData) {
+      console.log('Returning cached trades data after fetch error');
+      const filteredData = {
+        ...cachedData,
+        ardor_trades: filterByPeriod(
+          cachedData.ardor_trades,
+          period,
+          { timestampField: 'timestamp' }
+        ),
+        fetchError: error.message
+      };
+      filteredData.count = filteredData.ardor_trades.length;
+      return filteredData;
+    }
+    
+    // Otherwise return empty result
+    return {
+      ardor_trades: [],
+      count: 0,
+      ...createCacheMetadata(period),
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Get craftings with improved caching
+ * @param {boolean} forceRefresh - Whether to force a refresh of the cache
+ * @param {string} period - Time period filter (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Craftings data
+ */
+async function getCraftings(forceRefresh = false, period = 'all') {
+  const cacheKey = CACHE_PREFIXES.CRAFTS;
+  
+  try {
+    // Check cache first unless refresh is forced
+    if (!forceRefresh) {
+      const cachedData = cacheService.file.read(cacheKey);
+      if (cachedData && cacheService.isCacheValid(cachedData)) {
+        console.log('Using cached craftings data and applying period filter');
+        // Filter the cached data by period
+        const filteredData = { 
+          ...cachedData,
+          craftings: filterByPeriod(
+            cachedData.craftings, 
+            period, 
+            { timestampField: 'timestamp', dateField: 'craftDate' }
+          )
+        };
+        
+        // Update the count to match filtered data
+        filteredData.count = filteredData.craftings.length;
+        return filteredData;
+      }
+    }
+    
+    console.log('Fetching fresh craftings data');
+    // Call the original function
+    const result = await getOriginalCraftings(forceRefresh);
+    
+    // Cache the results with metadata
+    const resultWithMetadata = {
+      ...result,
+      ...createCacheMetadata('all', result.craftings ? result.craftings.length : 0)
+    };
+    
+    cacheService.file.write(cacheKey, resultWithMetadata);
+    
+    // Filter if period is not 'all'
+    if (period !== 'all') {
+      const filteredData = { 
+        ...resultWithMetadata,
+        craftings: filterByPeriod(
+          resultWithMetadata.craftings, 
+          period, 
+          { timestampField: 'timestamp', dateField: 'craftDate' }
+        )
+      };
+      
+      filteredData.count = filteredData.craftings.length;
+      return filteredData;
+    }
+    
+    return resultWithMetadata;
+  } catch (error) {
+    console.error('Error fetching craftings:', error);
+    
+    // Return cached data on error if available
+    const cachedData = cacheService.file.read(cacheKey);
+    if (cachedData) {
+      console.log('Returning cached craftings data after fetch error');
+      const filteredData = {
+        ...cachedData,
+        craftings: filterByPeriod(
+          cachedData.craftings,
+          period,
+          { timestampField: 'timestamp', dateField: 'craftDate' }
+        ),
+        fetchError: error.message
+      };
+      filteredData.count = filteredData.craftings.length;
+      return filteredData;
+    }
+    
+    // Otherwise return empty result
+    return {
+      craftings: [],
+      count: 0,
+      ...createCacheMetadata(period),
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Get morphings with improved caching
+ * @param {boolean} forceRefresh - Whether to force a refresh of the cache
+ * @param {string} period - Time period filter (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Morphings data
+ */
+async function getMorphings(forceRefresh = false, period = 'all') {
+  const cacheKey = CACHE_PREFIXES.MORPHS;
+  
+  try {
+    // Check cache first unless refresh is forced
+    if (!forceRefresh) {
+      const cachedData = cacheService.file.read(cacheKey);
+      if (cachedData && cacheService.isCacheValid(cachedData)) {
+        console.log('Using cached morphings data and applying period filter');
+        // Filter the cached data by period
+        const filteredData = { 
+          ...cachedData,
+          // Handle both "morphings" and "morphs" fields for backward compatibility
+          morphings: filterByPeriod(
+            cachedData.morphings || cachedData.morphs || [], 
+            period, 
+            { timestampField: 'timestamp', dateField: 'morphDate' }
+          )
+        };
+        
+        // Update the count to match filtered data
+        filteredData.count = filteredData.morphings.length;
+        return filteredData;
+      }
+    }
+    
+    console.log('Fetching fresh morphings data');
+    // Call the original function
+    const result = await getOriginalMorphings(forceRefresh);
+    
+    // The original function may use "morphs" instead of "morphings"
+    const morphingsData = result.morphings || result.morphs || [];
+    
+    // Cache the results with metadata - ensure consistent naming
+    const resultWithMetadata = {
+      ...result,
+      // If original result uses "morphs", map it to "morphings" for consistency
+      morphings: morphingsData,
+      ...createCacheMetadata('all', morphingsData.length)
+    };
+    
+    cacheService.file.write(cacheKey, resultWithMetadata);
+    
+    // Filter if period is not 'all'
+    if (period !== 'all') {
+      const filteredData = { 
+        ...resultWithMetadata,
+        morphings: filterByPeriod(
+          morphingsData, 
+          period, 
+          { timestampField: 'timestamp', dateField: 'morphDate' }
+        )
+      };
+      
+      filteredData.count = filteredData.morphings.length;
+      return filteredData;
+    }
+    
+    return resultWithMetadata;
+  } catch (error) {
+    console.error('Error fetching morphings:', error);
+    
+    // Return cached data on error if available
+    const cachedData = cacheService.file.read(cacheKey);
+    if (cachedData) {
+      console.log('Returning cached morphings data after fetch error');
+      const morphingsData = cachedData.morphings || cachedData.morphs || [];
+      const filteredData = {
+        ...cachedData,
+        // Ensure we have a morphings field even if original only has morphs
+        morphings: filterByPeriod(
+          morphingsData,
+          period,
+          { timestampField: 'timestamp', dateField: 'morphDate' }
+        ),
+        fetchError: error.message
+      };
+      filteredData.count = filteredData.morphings.length;
+      return filteredData;
+    }
+    
+    // Otherwise return empty result
+    return {
+      morphings: [],
+      count: 0,
+      ...createCacheMetadata(period),
+      error: error.message
+    };
+  }
+}
+
+/**
  * Initialize service - start periodic cache updates
  */
 async function init() {
@@ -112,6 +452,15 @@ async function init() {
     console.error('Error initializing Ardor service:', error);
     throw error; // Re-throw to let the application handle it
   }
+
+  // Add cache events monitoring
+  cacheService.events.on('error', (event) => {
+    console.error(`Cache error in ${event.store} store:`, event.error);
+  });
+  
+  cacheService.events.on('eviction', (event) => {
+    console.log(`Cache eviction in ${event.store}: removed ${event.itemsRemoved} items`);
+  });
 }
 
 // Set up automatic cache refresh for morphs specifically to help debug

@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { ARDOR_API_URL, ARDOR_CHAIN_ID } = require('../../config');
 const { makeRetryableRequest } = require('../../utils/apiUtils');
+const cacheService = require('../../services/cacheService');
 
 // Ardor epoch constant
 const ARDOR_EPOCH = new Date("2018-01-01T00:00:00Z").getTime();
@@ -23,6 +24,11 @@ const assetInfoCache = {};
  * Transaction cache to prevent duplicate API calls
  */
 const transactionCache = new Map();
+
+/**
+ * Asset transfer cache to avoid duplicate requests
+ */
+const transferBatchCache = new Map();
 
 /**
  * Get transaction with caching
@@ -123,94 +129,98 @@ async function getAssetInfo(assetId) {
  * @returns {Promise<Array>} Asset transfers
  */
 async function fetchMorphTransactions(assetIds, morphAccount) {
-  let allMorphs = [];
-  const batchSize = 10; // Process in small batches to avoid overwhelming the API
+  // Create a more efficient batching system
+  const BATCH_SIZE = 5;
+  const uniqueAssetIds = [...new Set(assetIds)]; // Remove duplicates
+  const transfers = [];
+  const processedAssetIds = new Set();
   
-  console.log(`Fetching morph transactions FROM account: ${morphAccount}`);
+  console.log(`Processing ${uniqueAssetIds.length} unique assets for morph transactions...`);
   
-  // Safety check: ensure assetIds is an array and contains valid items
-  if (!Array.isArray(assetIds)) {
-    console.error('Asset IDs must be an array:', typeof assetIds);
-    return [];
-  }
-  
-  // Normalize asset IDs to ensure they are all valid strings
-  const validAssetIds = assetIds.filter(id => {
-    if (!id) {
-      return false;
-    }
-    // Handle both string asset IDs and objects that contain asset ID
-    if (typeof id === 'object' && id.asset) {
-      return true;
-    }
-    return typeof id === 'string' || typeof id === 'number';
-  }).map(id => {
-    // Extract asset ID from object if needed
-    if (typeof id === 'object' && id.asset) {
-      return id.asset.toString();
-    }
-    return id.toString();
-  });
-  
-  console.log(`Processing ${validAssetIds.length} valid asset IDs out of ${assetIds.length} provided`);
-  
-  if (validAssetIds.length === 0) {
-    console.warn('No valid asset IDs to process after filtering');
-    return [];
-  }
-  
-  for (let i = 0; i < validAssetIds.length; i += batchSize) {
-    const batchAssetIds = validAssetIds.slice(i, i + batchSize);
+  // Process assets in batches
+  for (let i = 0; i < uniqueAssetIds.length; i += BATCH_SIZE) {
+    const batch = uniqueAssetIds.slice(i, i + BATCH_SIZE);
+    console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(uniqueAssetIds.length/BATCH_SIZE)}, assets: ${batch.slice(0, 5).join(', ')}...`);
     
-    console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(validAssetIds.length/batchSize)}, assets: ${batchAssetIds.join(', ').substring(0, 100)}...`);
-    
-    const batchPromises = batchAssetIds.map(async (assetId) => {
+    // Process each asset in the batch with proper caching
+    const batchPromises = batch.map(async (assetId) => {
+      // Skip if already processed
+      if (processedAssetIds.has(assetId)) {
+        console.log(`Skipping already processed asset ${assetId}`);
+        return [];
+      }
+      
+      // Generate cache key for this asset's transfers
+      const cacheKey = `asset_transfers_${assetId}`;
+      
+      // Check memory cache first (fast)
+      const cachedTransfers = cacheService.transaction.get(cacheKey);
+      if (cachedTransfers) {
+        console.log(`Using cached transfers for asset ${assetId} (${cachedTransfers.length} transfers)`);
+        processedAssetIds.add(assetId);
+        return cachedTransfers;
+      }
+      
+      // Try file cache next (slower but persistent)
+      const fileCacheKey = `ardor_asset_transfers_${assetId}`;
+      const fileCache = cacheService.file.read(fileCacheKey);
+      if (fileCache && fileCache.transfers) {
+        console.log(`Using file cache for asset ${assetId} (${fileCache.transfers.length} transfers)`);
+        // Store in memory cache for faster access next time
+        cacheService.transaction.set(cacheKey, fileCache.transfers, 3600); // 1 hour TTL
+        processedAssetIds.add(assetId);
+        return fileCache.transfers;
+      }
+
       try {
-        // Use the retryable request helper instead of axios directly
-        const senderResponse = await makeRetryableRequest({
+        // Fetch transfers for this asset
+        console.log(`Fetching transfers for asset ${assetId}...`);
+        const response = await makeRetryableRequest({
           url: ARDOR_API_URL,
           params: {
             requestType: 'getAssetTransfers',
             asset: assetId,
-            account: morphAccount,  // Transfers FROM the morph account
-            chain: ARDOR_CHAIN_ID,
             firstIndex: 0,
             lastIndex: 100
-          }
+          },
+          cacheTTL: 3600 // 1 hour
         });
         
-        let assetTransfers = [];
-        
-        // Process sender transfers
-        if (senderResponse.data && senderResponse.data.transfers && Array.isArray(senderResponse.data.transfers)) {
-          const transfers = senderResponse.data.transfers.map(transfer => ({
-            ...transfer,
-            assetId,
-            direction: 'outgoing'
-          }));
-          assetTransfers = [...assetTransfers, ...transfers];
+        if (!response.data || !response.data.transfers) {
+          console.log(`No transfers found for asset ${assetId}`);
+          processedAssetIds.add(assetId);
+          return [];
         }
         
+        const assetTransfers = response.data.transfers.filter(transfer => 
+          transfer.recipientRS === morphAccount
+        );
+        
         console.log(`Found ${assetTransfers.length} potential outgoing transfers for asset ${assetId}`);
+        
+        // Cache the result in both memory and file
+        cacheService.transaction.set(cacheKey, assetTransfers, 3600);
+        cacheService.file.write(fileCacheKey, { 
+          transfers: assetTransfers,
+          timestamp: new Date().toISOString(),
+          assetId
+        });
+        
+        processedAssetIds.add(assetId);
         return assetTransfers;
       } catch (error) {
         console.error(`Error fetching transfers for asset ${assetId}:`, error.message);
+        processedAssetIds.add(assetId); // Mark as processed to avoid retries
         return [];
       }
     });
     
-    try {
-      const batchResults = await Promise.all(batchPromises);
-      const flatBatchResults = batchResults.flat();
-      allMorphs = [...allMorphs, ...flatBatchResults];
-    } catch (error) {
-      console.error('Error processing batch:', error.message);
-      // Continue with the next batch even if this one failed
-    }
+    const batchResults = await Promise.all(batchPromises);
+    transfers.push(...batchResults.flat());
   }
   
-  console.log(`Total potential morph transfers found: ${allMorphs.length}`);
-  return allMorphs;
+  console.log(`Total potential morph transfers found: ${transfers.length}`);
+  return transfers;
 }
 
 /**

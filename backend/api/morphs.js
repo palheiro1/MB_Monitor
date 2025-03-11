@@ -21,6 +21,11 @@ router.get('/', async (req, res) => {
     // Add console log to see what data is being returned
     console.log(`Morphing data received with ${morphingData.morphs?.length || 0} items`);
     
+    if (morphingData.morphs?.length === 0) {
+      console.log('WARNING: No morphs found in response. Data structure:', 
+        JSON.stringify(Object.keys(morphingData)).substring(0, 100));
+    }
+    
     // Ensure we have the right structure for frontend
     const response = {
       morphs: morphingData.morphs || [],
@@ -32,7 +37,11 @@ router.get('/', async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error fetching morphing data:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: error.message,
+      morphs: [],
+      count: 0 
+    });
   }
 });
 

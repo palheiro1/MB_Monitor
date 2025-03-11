@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { readJSON, writeJSON } = require('./jsonStorage');
+const cacheService = require('../services/cacheService');
 
 // Define constants
 const CACHE_DIR = path.join(__dirname, '../storage');
@@ -258,61 +259,100 @@ function isCacheValid(cacheData) {
 }
 
 /**
- * Get cached data with unified approach
+ * Get cached data with smart refresh policy
+ * 
+ * @param {string} dataType - Type of data (e.g., 'trades', 'morphs')
+ * @param {Function} fetchFunction - Function to fetch data if cache is invalid
+ * @param {Object} options - Options for caching
+ * @returns {Promise<Object>} The cached or freshly fetched data
  */
-async function getCachedData(dataType, period, fetchFunction, forceRefresh = false, options = {}) {
-  // Normalize the data type to ensure consistent naming
-  dataType = dataType.replace(/^giftz_/, 'giftz_');  // Correct potential gift_ to giftz_
-  
-  // Define unified cache key without period suffix
-  const cacheKey = `ardor_${dataType}`;
-  
-  // Before this function runs, log the cache file path for debugging
-  const cacheFilePath = path.join(CACHE_DIR, `${cacheKey}.json`);
-  console.log(`[Cache] Looking for data in: ${cacheFilePath}`);
-  
-  // Define filter options based on data type
-  const filterOptions = {
-    users: { 
-      timestampField: 'timestamp',
-      dateField: 'last_seen',
-      isoDateField: 'timestampISO',
-      dataArrayField: 'ardor_users'
-    },
-    trades: {
-      timestampField: 'timestamp',
-      dateField: 'date',
-      isoDateField: 'timestampISO',
-      dataArrayField: 'ardor_trades'
-    },
-    // Add other data types as needed
-    ...options
-  };
-  
+async function getCachedData(dataType, fetchFunction, options = {}) {
+  const {
+    forceRefresh = false,
+    cacheFile = `ardor_${dataType}`,
+    cacheTTLSeconds = 3600, // 1 hour default
+    period = 'all',
+    dataArrayField
+  } = options;
+
   try {
-    // Check if cache exists and is valid
-    const cacheData = readJSON(cacheKey);
+    // Make a standard cache key
+    const cacheKey = dataType.includes('ardor_') ? dataType : `ardor_${dataType}`;
     
-    // If we need fresh data (forced refresh, no cache, or invalid cache)
-    if (forceRefresh || !cacheData || !isCacheValid(cacheData)) {
-      console.log(`Fetching fresh ${dataType} data (forceRefresh=${forceRefresh}, validCache=${cacheData ? isCacheValid(cacheData) : false})`);
+    // Check if we need to write debug info
+    const debug = options.debug || process.env.DEBUG;
+    
+    if (debug) {
+      console.log(`getCachedData: type=${dataType}, force=${forceRefresh}, file=${cacheFile}`);
+    }
+
+    // First check if data is in the cache and not forced to refresh
+    if (!forceRefresh) {
+      const cachedData = cacheService.file.read(cacheKey);
       
-      // Get fresh data using the provided function
-      const freshData = await fetchFunction();
-      
-      // Save to cache
-      writeJSON(cacheKey, freshData);
-      
-      // Filter and return based on period
-      return applyPeriodFilter(freshData, period, filterOptions[dataType] || {});
+      if (cachedData && cacheService.isCacheValid(cachedData, cacheTTLSeconds)) {
+        if (debug) {
+          console.log(`Using cached ${dataType} data from ${cacheKey}.json`);
+        }
+        
+        // Special handling for morphs data - if it's completely empty, don't use the cache
+        if (dataType === 'morphs' && 
+            (!Array.isArray(cachedData.morphs) || cachedData.morphs.length === 0)) {
+          console.log('Cache exists but has empty morphs array - refreshing data');
+        } else {
+          return cachedData;
+        }
+      }
+    }
+
+    if (debug) {
+      console.log(`Cache invalid or refresh forced for ${dataType}, fetching fresh data...`);
+    }
+
+    // Validate that fetchFunction is actually a function
+    if (typeof fetchFunction !== 'function') {
+      throw new TypeError(`fetchFunction for ${dataType} must be a function, got ${typeof fetchFunction}`);
+    }
+
+    // If not in cache or forced to refresh, fetch fresh data
+    const data = await fetchFunction(options.period);
+
+    // Enhancement: Add timestamp if not present
+    if (!data.timestamp) {
+      data.timestamp = new Date().toISOString();
     }
     
-    console.log(`Using cached ${dataType} data with period filter: ${period}`);
+    // If this is morphs data, ensure we have at least one item before storing in cache
+    if (dataType === 'morphs' && dataArrayField && 
+        (!Array.isArray(data[dataArrayField]) || data[dataArrayField].length === 0)) {
+      console.log(`Warning: ${dataType} data was fetched but returned empty array. Not caching.`);
+      return data;
+    }
+
+    // Store in cache
+    cacheService.file.write(cacheKey, data);
     
-    // Filter and return cached data based on period
-    return applyPeriodFilter(cacheData, period, filterOptions[dataType] || {});
+    if (debug) {
+      console.log(`Successfully wrote cache to ${path.join(process.cwd(), 'backend/storage', cacheKey + '.json')}`);
+    }
+
+    return data;
   } catch (error) {
-    console.error(`Error handling cached data for ${dataType}:`, error);
+    console.error(`Error in getCachedData for ${dataType}:`, error);
+    
+    // Try to return cached data even if it's expired in case of fetch error
+    const cacheKey = dataType.includes('ardor_') ? dataType : `ardor_${dataType}`;
+    const cachedData = cacheService.file.read(cacheKey);
+    
+    if (cachedData) {
+      console.log(`Returning expired cached data for ${dataType} after fetch error`);
+      return {
+        ...cachedData,
+        fromExpiredCache: true,
+        fetchError: error.message
+      };
+    }
+    
     throw error;
   }
 }

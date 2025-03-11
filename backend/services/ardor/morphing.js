@@ -4,16 +4,19 @@
  * Handles detection and processing of card morphing operations
  */
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const { getCachedData } = require('../../utils/cacheManager');
-const { writeJSON } = require('../../utils/jsonStorage'); // FIX: Import from correct module
+const { writeJSON, readJSON } = require('../../utils/jsonStorage'); 
 const { ARDOR_API_URL, ARDOR_CHAIN_ID, MORPH_ACCOUNT } = require('../../config');
 const { getTrackedAssets } = require('./assets');
 const { fetchMorphTransactions, processMorphData, ardorTimestampToDate } = require('./morphingUtils');
-const { getCacheStats } = require('../../utils/apiUtils');
+const cacheService = require('../../services/cacheService');
 
 // Constants
 const MORPHING_MESSAGE = "cardmorph";
 const ARDOR_EPOCH = new Date("2018-01-01T00:00:00Z").getTime();
+const DEBUG_MORPHS_PATH = path.join(__dirname, '../../storage/morphs_debug.json');
 
 /**
  * Generate a time-based period filter
@@ -60,14 +63,14 @@ async function getMorphings(forceRefresh = false, period = 'all') {
     // This will use ardor_morphs.json as the cache file
     return await getCachedData(
       'morphs',     // Changed from 'morphings' to 'morphs' for consistency
-      period,        // period for filtering
       fetchMorphingsData, // function to fetch fresh data
-      forceRefresh,  // whether to force refresh
       {
+        forceRefresh,  // whether to force refresh
+        period,        // period for filtering
+        dataArrayField: 'morphs',
         // Additional options for filtering
         timestampField: 'timestamp',
-        dateField: 'timestampISO',
-        dataArrayField: 'morphs'
+        dateField: 'timestampISO'
       }
     );
   } catch (error) {
@@ -83,14 +86,30 @@ getMorphings.initialized = false;
  * @returns {Promise<Object>} All morphing data
  */
 async function fetchMorphingsData() {
-  console.log('Fetching fresh morphing data...');
-  
   try {
-    // Get the tracked assets
-    const trackedAssets = await getTrackedAssets();
-    console.log(`Tracked assets data structure: ${typeof trackedAssets}`);
+    console.log('Fetching all morphing transactions...');
     
-    // Extract asset IDs - ONLY FROM REGULAR CARDS (special cards can't be morphed)
+    // Check if debug morphs file exists (this file has the processed morphs)
+    if (fs.existsSync(DEBUG_MORPHS_PATH)) {
+      console.log('Found morphs_debug.json file, checking for usable data...');
+      const debugData = readJSON('morphs_debug');
+      
+      if (debugData && Array.isArray(debugData.morphs) && debugData.morphs.length > 0) {
+        console.log(`Using ${debugData.morphs.length} morphs from morphs_debug.json`);
+        
+        // Create result with standard format
+        return {
+          morphs: debugData.morphs,
+          count: debugData.morphs.length,
+          timestamp: new Date().toISOString()
+        };
+      } else {
+        console.log('Debug morph data exists but is empty, continuing with API fetch');
+      }
+    }
+    
+    // First get all the tracked asset IDs
+    const trackedAssets = await getTrackedAssets();
     let cardAssets = [];
     
     // Debug the structure of regularCards more deeply
@@ -217,17 +236,22 @@ async function fetchMorphingsData() {
     
     console.log(`Found ${transfers.length} potential morph transfers to process`);
     
-    // Get cache stats before processing
-    const beforeCacheStats = getCacheStats();
-    console.log(`Cache stats before processing: ${JSON.stringify(beforeCacheStats)}`);
+    // Get cache stats before processing - REPLACE THIS WITH NEW CACHE SERVICE
+    const memoryCacheStats = cacheService.getCacheMetrics().memoryCaches;
+    console.log(`Cache stats before processing: ${JSON.stringify({
+      memory: memoryCacheStats.memory.validItems,
+      transaction: memoryCacheStats.transaction.validItems
+    })}`);
     
     // Process the transfers to identify actual morph operations
     const morphs = await processMorphData(transfers);
     
     // Get cache stats after processing to measure efficiency
-    const afterCacheStats = getCacheStats();
-    console.log(`Cache stats after processing: ${JSON.stringify(afterCacheStats)}`);
-    console.log(`Cache efficiency: ${afterCacheStats.valid - beforeCacheStats.valid} new cached items used`);
+    const afterMemoryCacheStats = cacheService.getCacheMetrics().memoryCaches;
+    console.log(`Cache stats after processing: ${JSON.stringify({
+      memory: afterMemoryCacheStats.memory.validItems,
+      transaction: afterMemoryCacheStats.transaction.validItems
+    })}`);
     
     console.log(`Successfully identified ${morphs.length} valid morphing operations`);
     
@@ -254,7 +278,28 @@ async function fetchMorphingsData() {
     return result;
   } catch (error) {
     console.error('Error fetching morphing data:', error);
-    // Return empty result on error
+    
+    // Try to load debug data if available as one final fallback
+    try {
+      console.log('Attempting to use debug morph data after fetch error');
+      if (fs.existsSync(DEBUG_MORPHS_PATH)) {
+        const debugData = readJSON('morphs_debug');
+        
+        if (debugData && Array.isArray(debugData.morphs) && debugData.morphs.length > 0) {
+          console.log(`Using ${debugData.morphs.length} morphs from debug data after fetch error`);
+          return {
+            morphs: debugData.morphs,
+            count: debugData.morphs.length,
+            timestamp: new Date().toISOString(),
+            fromFallbackData: true
+          };
+        }
+      }
+    } catch (fallbackError) {
+      console.error('Failed to load fallback morph data:', fallbackError);
+    }
+    
+    // Return empty result on error if all fallbacks fail
     return { morphs: [], count: 0, timestamp: new Date().toISOString() };
   }
 }

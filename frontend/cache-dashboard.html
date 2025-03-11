@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cache Dashboard - MB Monitor</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">MB Monitor</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="cache-dashboard.html">Cache Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="debug.html">API Debug</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container my-4">
+    <div class="row">
+      <div class="col-12">
+        <div class="card shadow mb-4">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="m-0">Cache Management Dashboard</h4>
+            <div>
+              <button id="refresh-cache" class="btn btn-sm btn-light me-2">
+                <i class="fas fa-sync-alt"></i> Refresh
+              </button>
+              <button id="clear-all-caches" class="btn btn-sm btn-danger">
+                <i class="fas fa-trash-alt"></i> Clear All
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="text-muted">Last updated: <span id="last-updated-time">-</span></p>
+            
+            <h5>Memory Caches</h5>
+            <div class="table-responsive mb-4">
+              <table id="memory-cache-table" class="table table-striped table-hover">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Cache Type</th>
+                    <th>Items</th>
+                    <th>Valid Items</th>
+                    <th>Size</th>
+                    <th>Hit Ratio</th>
+                    <th>Last Cleanup</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="6" class="text-center">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <h5>File Caches</h5>
+            <div class="table-responsive">
+              <table id="file-cache-table" class="table table-striped table-hover">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Cache File</th>
+                    <th>Records</th>
+                    <th>Size</th>
+                    <th>Last Modified</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="5" class="text-center">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Cache Details Section -->
+    <div class="row mt-4">
+      <div class="col-md-6">
+        <div class="card shadow mb-4">
+          <div class="card-header bg-info text-white">
+            <h5 class="m-0">Cache Performance</h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i> Cache performance metrics help identify bottlenecks and optimize data access patterns.
+            </div>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Total File Caches
+                <span id="total-file-caches" class="badge bg-primary rounded-pill">-</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Total Memory Caches
+                <span id="total-memory-caches" class="badge bg-primary rounded-pill">-</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Average Hit Ratio
+                <span id="avg-hit-ratio" class="badge bg-success rounded-pill">-</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card shadow mb-4">
+          <div class="card-header bg-success text-white">
+            <h5 class="m-0">Cache Management Tips</h5>
+          </div>
+          <div class="card-body">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item"><i class="fas fa-check-circle text-success"></i> Clear caches when data appears stale or outdated</li>
+              <li class="list-group-item"><i class="fas fa-check-circle text-success"></i> Regular cleanup helps maintain application performance</li>
+              <li class="list-group-item"><i class="fas fa-check-circle text-success"></i> Low hit ratios may indicate inefficient cache usage</li>
+              <li class="list-group-item"><i class="fas fa-check-circle text-success"></i> High memory usage may require cache size adjustments</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Toast Messages -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 5">
+      <div id="toast-container"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module">
+    import { initCacheDashboard } from './js/cache-dashboard.js';
+    
+    // Initialize toast functionality
+    window.showToast = function(message, type = 'info') {
+      const toastContainer = document.getElementById('toast-container');
+      const toastId = `toast-${Date.now()}`;
+      const bgClass = type === 'success' ? 'bg-success' : 
+                      type === 'error' ? 'bg-danger' : 'bg-info';
+      
+      const toastHTML = `
+        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="toast-header ${bgClass} text-white">
+            <strong class="me-auto">MB Monitor</strong>
+            <small>Just now</small>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body">${message}</div>
+        </div>
+      `;
+      
+      toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+      const toastElement = document.getElementById(toastId);
+      const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+      toast.show();
+      
+      // Remove toast from DOM after it's hidden
+      toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+      });
+    };
+    
+    // Update summary stats when cache data loads
+    document.addEventListener('cacheStatsLoaded', (event) => {
+      const stats = event.detail;
+      
+      if (stats) {
+        document.getElementById('total-file-caches').textContent = stats.fileCache?.count || '0';
+        document.getElementById('total-memory-caches').textContent = 
+          Object.keys(stats.memoryCaches || {}).length;
+        
+        // Calculate average hit ratio
+        const ratios = Object.values(stats.memoryCaches || {})
+          .map(cache => parseFloat(cache.hitRatio) || 0);
+        
+        const avgRatio = ratios.length ? 
+          (ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length).toFixed(2) : 
+          '0.00';
+          
+        document.getElementById('avg-hit-ratio').textContent = avgRatio;
+      }
+    });
+    
+    // Initialize the dashboard when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      initCacheDashboard();
+    });
+  </script>
+</body>
+</html>

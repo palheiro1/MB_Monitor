@@ -1,33 +1,55 @@
+/**
+ * Cache API Routes
+ * 
+ * Provides endpoints for cache management and stats
+ */
 const express = require('express');
 const router = express.Router();
-const { readJSON } = require('../../utils/jsonStorage');
-const { listCacheFiles, clearCacheFile, clearAllCaches } = require('../../utils/cacheManager');
+const cacheService = require('../../services/cacheService');
+const { createCacheKey } = require('../../utils/cacheUtils');
 
-// Get cache status and file info
-router.get('/status', async (req, res) => {
+/**
+ * GET /api/cache/status - Get cache status
+ */
+router.get('/status', (req, res) => {
   try {
-    const cacheFiles = await listCacheFiles();
+    const stats = cacheService.getCacheMetrics();
     
     res.json({
       status: 'success',
-      files: cacheFiles,
-      count: cacheFiles.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      files: stats.fileCache.files,
+      count: stats.fileCache.files.length,
+      memoryStats: stats.memoryCaches
     });
   } catch (error) {
     console.error('Error getting cache status:', error);
-    res.status(500).json({ error: 'Failed to get cache status' });
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get cache status',
+      error: error.message
+    });
   }
 });
 
-// Get a specific cache file
+/**
+ * GET /api/cache/file/:filename - Get specific cache file
+ */
 router.get('/file/:filename', (req, res) => {
   try {
     const { filename } = req.params;
-    const data = readJSON(filename);
+    // Make sure filename doesn't contain path traversal
+    if (filename.includes('..') || filename.includes('/')) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid filename'
+      });
+    }
+    
+    const data = cacheService.file.read(filename);
     
     if (!data) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         status: 'error',
         message: `Cache file ${filename} not found`
       });
@@ -35,69 +57,108 @@ router.get('/file/:filename', (req, res) => {
     
     res.json({
       status: 'success',
-      data,
-      timestamp: new Date().toISOString()
+      filename: `${filename}.json`,
+      data
     });
   } catch (error) {
-    console.error(`Error reading cache file ${req.params.filename}:`, error);
+    console.error('Error reading cache file:', error);
     res.status(500).json({ 
       status: 'error',
-      message: `Failed to read cache file: ${error.message}`
+      message: error.message 
     });
   }
 });
 
-// Clear a specific cache file
-router.delete('/file/:filename', async (req, res) => {
+/**
+ * DELETE /api/cache/file/:filename - Clear specific cache
+ */
+router.delete('/file/:filename', (req, res) => {
   try {
     const { filename } = req.params;
-    const result = await clearCacheFile(filename);
+    const result = cacheService.file.delete(filename);
     
-    if (result.success) {
+    if (result) {
       res.json({
         status: 'success',
-        message: result.message,
-        timestamp: new Date().toISOString()
+        message: `Cache file ${filename} deleted successfully`
       });
     } else {
       res.status(404).json({
         status: 'error',
-        message: result.message
+        message: `Cache file ${filename} not found`
       });
     }
   } catch (error) {
-    console.error(`Error clearing cache file ${req.params.filename}:`, error);
+    console.error('Error deleting cache file:', error);
     res.status(500).json({ 
       status: 'error',
-      message: `Failed to clear cache file: ${error.message}`
+      message: error.message 
     });
   }
 });
 
-// Clear all cache files
-router.delete('/all', async (req, res) => {
+/**
+ * DELETE /api/cache/all - Clear all caches
+ */
+router.delete('/all', (req, res) => {
   try {
-    const result = await clearAllCaches();
+    const fileResult = cacheService.file.clearAll();
+    const memoryCleared = cacheService.memory.clear();
+    const txCleared = cacheService.transaction.clear();
+    const requestCleared = cacheService.request.clear();
     
-    if (result.success) {
-      res.json({
-        status: 'success',
-        message: result.message,
-        details: result.details,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(500).json({
-        status: 'error',
-        message: result.message,
-        details: result.details
-      });
-    }
+    res.json({
+      status: 'success',
+      message: 'All caches cleared successfully',
+      details: {
+        fileCache: fileResult,
+        memoryCaches: {
+          memory: memoryCleared,
+          transaction: txCleared,
+          request: requestCleared
+        }
+      }
+    });
   } catch (error) {
-    console.error('Error clearing all caches:', error);
+    console.error('Error clearing caches:', error);
     res.status(500).json({ 
       status: 'error',
-      message: `Failed to clear all caches: ${error.message}`
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/cache/debug - Debug endpoint
+ */
+router.get('/debug', (req, res) => {
+  try {
+    // Add some interesting debug information
+    const metrics = cacheService.getCacheMetrics();
+    const hitRatios = {
+      memory: metrics.memoryCaches.memory.hitRatio,
+      transaction: metrics.memoryCaches.transaction.hitRatio,
+      request: metrics.memoryCaches.request.hitRatio
+    };
+    
+    res.json({
+      status: 'success',
+      message: 'Cache system is functioning properly',
+      timestamp: new Date().toISOString(),
+      metrics: {
+        fileCacheCount: metrics.fileCache.count,
+        fileCacheTotalSize: metrics.fileCache.totalSize,
+        memoryCacheItems: metrics.memoryCaches.memory.size,
+        transactionCacheItems: metrics.memoryCaches.transaction.size,
+        requestCacheItems: metrics.memoryCaches.request.size,
+        hitRatios
+      }
+    });
+  } catch (error) {
+    console.error('Error in debug endpoint:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
     });
   }
 });

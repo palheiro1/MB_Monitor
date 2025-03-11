@@ -3,6 +3,7 @@
  */
 const axios = require('axios');
 const { ARDOR_API_URL, ARDOR_FALLBACK_API_URL } = require('../config');
+const cacheService = require('../services/cacheService');
 
 // Track current node status
 const nodeStatus = {
@@ -89,16 +90,7 @@ async function checkPrimaryHealth() {
 }
 
 /**
- * Make an API request with automatic retry on failure and node fallback
- * @param {Object} options - Request options
- * @param {string} options.url - The URL to request (will be replaced with current node)
- * @param {Object} options.params - The query parameters
- * @param {number} [options.maxRetries=3] - Maximum number of retry attempts
- * @param {number} [options.initialDelay=1000] - Initial delay before retry in ms
- * @param {number} [options.maxDelay=10000] - Maximum delay between retries in ms
- * @param {boolean} [options.useCache=true] - Whether to use cache for this request
- * @param {number} [options.cacheTTL] - Cache TTL in ms (default 5 minutes)
- * @returns {Promise<Object>} - The API response
+ * Make a retryable API request with caching
  */
 async function makeRetryableRequest(options) {
   // Try to check if primary is healthy again
@@ -111,7 +103,7 @@ async function makeRetryableRequest(options) {
     initialDelay = 1000,
     maxDelay = 10000,
     useCache = true, // Default to using cache
-    cacheTTL = REQUEST_CACHE_TTL
+    cacheTTL = 300 // 5 minutes
   } = options;
   
   let url = originalUrl;
@@ -124,88 +116,53 @@ async function makeRetryableRequest(options) {
   // For GET requests, check cache first if enabled
   if (useCache) {
     const cacheKey = createCacheKey(url, params);
-    const cached = requestCache.get(cacheKey);
+    const cachedData = cacheService.request.get(cacheKey);
     
-    if (cached && Date.now() < cached.expiry) {
-      // Return cached response if valid
-      return cached.response;
+    if (cachedData) {
+      return cachedData;
     }
   }
   
-  let lastError;
+  // Not in cache or cache disabled, make the API request
+  let retries = 0;
   let delay = initialDelay;
   
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  while (true) {
     try {
-      // Show the target URL on first attempt to help with debugging
-      if (attempt === 0 && params && params.requestType) {
-        console.log(`Calling API: ${url} (${params.requestType})`);
-      }
-      
-      // Make the request
       const response = await axios.get(url, { params });
       
-      // Cache successful GET responses if caching is enabled
+      // Cache successful responses if enabled
       if (useCache) {
         const cacheKey = createCacheKey(url, params);
-        requestCache.set(cacheKey, {
-          response: response,
-          expiry: Date.now() + cacheTTL
-        });
-        
-        // Periodically clean up expired cache entries
-        if (Math.random() < 0.01) { // ~1% chance on each request
-          cleanupExpiredCache();
-        }
+        cacheService.request.set(cacheKey, response, cacheTTL);
       }
       
       return response;
     } catch (error) {
-      lastError = error;
-      
-      // Check if this is a network error or server error for an Ardor request
-      if ((originalUrl === ARDOR_API_URL || originalUrl === ARDOR_FALLBACK_API_URL) && 
-          (!error.response || (error.response && error.response.status >= 500))) {
+      // Handle network errors that might need failover to another node
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || 
+          error.response?.status >= 500 || error.message.includes('timeout')) {
         
-        // If we're using the primary node, try switching to fallback
-        if (!nodeStatus.usingFallback) {
+        if (url === nodeStatus.primaryUrl) {
+          // Switch to fallback node
           switchToFallback();
           url = nodeStatus.currentUrl;
-          console.log(`Retrying request with fallback node: ${url}`);
-          
-          // Reset attempt counter to give the fallback node a fair chance
-          attempt = 0;
-          delay = initialDelay;
+          continue; // Retry immediately with fallback
+        }
+        
+        // Already using fallback or not an Ardor API URL, try retrying
+        if (retries < maxRetries) {
+          retries++;
+          await sleep(delay);
+          delay = Math.min(delay * 2, maxDelay); // Exponential backoff
           continue;
         }
       }
       
-      // Regular retry logic
-      if (attempt < maxRetries) {
-        // If it's a network error or 5xx, we should retry
-        const shouldRetry = !error.response || (error.response && error.response.status >= 500);
-        
-        if (shouldRetry) {
-          console.log(`Request failed (attempt ${attempt + 1}/${maxRetries + 1}): ${error.message}. Retrying in ${delay}ms...`);
-          
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, delay));
-          
-          // Exponential backoff with jitter
-          delay = Math.min(delay * 1.5 + Math.random() * 1000, maxDelay);
-        } else {
-          // Don't retry client errors (4xx)
-          throw error;
-        }
-      } else {
-        // We've exhausted all retries
-        console.error(`Request failed after ${maxRetries + 1} attempts: ${error.message}`);
-        throw error;
-      }
+      // For all other errors or if retries exhausted
+      throw error;
     }
   }
-  
-  throw lastError;
 }
 
 /**
@@ -318,6 +275,6 @@ module.exports = {
   checkNodeConnectivity,
   getCurrentApiUrl,
   nodeStatus,
-  getCacheStats,
-  clearRequestCache: () => requestCache.clear()
+  // Remove outdated getCacheStats and clearRequestCache
+  // as we now use the unified cacheService
 };
