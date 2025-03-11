@@ -84,6 +84,12 @@ export function renderTradeCards(trades, container, newItemIds = []) {
     try {
       const card = document.importNode(template.content, true);
       
+      // Fix: Set card name from available trade properties
+      const cardNameEl = card.querySelector('.card-name');
+      if (cardNameEl) {
+        cardNameEl.textContent = trade.card_name || trade.cardName || trade.assetName || 'Unknown Card';
+      }
+      
       const buyerNameEl = card.querySelector('.buyer-name');
       if (buyerNameEl) {
         // Use full address instead of formatted/shortened

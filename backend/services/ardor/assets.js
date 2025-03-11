@@ -6,7 +6,7 @@ const { ARDOR_API_URL, REGULAR_CARDS_ISSUER, SPECIAL_CARDS_ISSUER, TOKEN_IDS } =
  * Fetch and process tracked assets from Ardor
  * @returns {Promise<Object>} Processed asset data
  */
-async function getTrackedAssets() {
+async function getTrackedAssets(forceRefresh = false) {
   try {
     console.log('Fetching tracked Ardor assets...');
     
@@ -119,10 +119,36 @@ async function getTrackedAssets() {
     // Save to JSON file
     writeJSON('ardor_tracked_assets', result);
     
+    debugAssetStructure();
+    
     return result;
   } catch (error) {
     console.error('Error fetching tracked Ardor assets:', error.message);
     throw new Error(`Failed to fetch tracked Ardor assets: ${error.message}`);
+  }
+}
+
+// Add this debug function somewhere in the file
+function debugAssetStructure() {
+  console.log('Debugging asset structure...');
+  
+  const assets = readJSON('ardor_tracked_assets');
+  if (!assets) {
+    console.log('No assets found in cache');
+    return;
+  }
+  
+  console.log(`Regular cards: ${assets.regularCards?.length || 0}`);
+  console.log(`Special cards: ${assets.specialCards?.length || 0}`);
+  
+  // Show full structure of first items
+  if (assets.regularCards?.[0]) {
+    console.log('Regular card structure:', JSON.stringify(assets.regularCards[0]));
+    // Find likely asset ID fields
+    const card = assets.regularCards[0];
+    for (const key in card) {
+      console.log(`Field ${key}: ${JSON.stringify(card[key]).substring(0, 100)}`);
+    }
   }
 }
 

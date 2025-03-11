@@ -147,7 +147,7 @@ export function renderBurns(container, burnsData, options = {}) {
             <div class="transaction-users">
               <span class="burner">
                 <i class="fas fa-user-ninja"></i> 
-                <span class="burner-name">${formatAddress(burn.senderRS || burn.sender)}</span>
+                <span class="burner-name">${formatAddress(burn.senderRS || burn.sender || 'Unknown')}</span>
               </span>
             </div>
             <div class="burn-amount">

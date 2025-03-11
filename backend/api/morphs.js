@@ -4,7 +4,8 @@
  */
 const express = require('express');
 const router = express.Router();
-const ardorService = require('../services/ardorService');
+// Use the correct import for the morphing service
+const { getMorphings } = require('../services/ardor/morphing');
 
 // Get morphing operations with filtering
 router.get('/', async (req, res) => {
@@ -15,21 +16,14 @@ router.get('/', async (req, res) => {
     console.log(`Processing morphings request with period=${period}, forceRefresh=${forceRefresh}`);
     
     // Pass both forceRefresh and period parameters
-    const morphingData = await ardorService.getMorphings(forceRefresh, period);
+    const morphingData = await getMorphings(forceRefresh, period);
     
     // Add console log to see what data is being returned
-    console.log(`Morphing data structure: ${JSON.stringify({
-      period: period,
-      count: morphingData.count || 0,
-      hasData: !!morphingData.morphings || !!morphingData.morphs,
-      morphsLength: (morphingData.morphings || morphingData.morphs || []).length
-    })}`);
+    console.log(`Morphing data received with ${morphingData.morphs?.length || 0} items`);
     
     // Ensure we have the right structure for frontend
-    // The frontend expects an array of morph objects in the 'morphs' property
     const response = {
-      morphs: Array.isArray(morphingData.morphings) ? morphingData.morphings : 
-             (Array.isArray(morphingData.morphs) ? morphingData.morphs : []),
+      morphs: morphingData.morphs || [],
       count: morphingData.count || 0,
       timestamp: morphingData.timestamp,
       period: period

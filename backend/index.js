@@ -4,6 +4,8 @@ const cors = require('cors');
 const api = require('./api');
 const ardorService = require('./services/ardorService');
 const polygonService = require('./services/polygonService');
+const { ARDOR_API_URL, ARDOR_NODE } = require('./config');
+const { logApiNodeInfo, checkNodeConnectivity } = require('./utils/apiUtils');
 
 // Create Express app
 const app = express();
@@ -54,10 +56,24 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Frontend: http://localhost:${PORT}`);
-  console.log(`API: http://localhost:${PORT}/api`);
-});
+console.log('Starting MB Monitor server...');
+
+// Check connectivity to configured node
+checkNodeConnectivity(ARDOR_API_URL)
+  .then(isConnected => {
+    if (!isConnected) {
+      console.log('\n⚠ WARNING: Local node not accessible!');
+      console.log('  → Automatically using Jelurida public node as fallback');
+      console.log('  → To use your local node, make sure it\'s running on port 27876\n');
+    }
+    
+    logApiNodeInfo(ARDOR_API_URL);
+    
+    // Start server
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Frontend: http://localhost:${PORT}`);
+      console.log(`API: http://localhost:${PORT}/api`);
+    });
+  });

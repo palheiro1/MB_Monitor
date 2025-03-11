@@ -238,6 +238,26 @@ function filterDataByPeriod(data, period, options = {}) {
 }
 
 /**
+ * Check if cache is valid by timestamp
+ * @param {Object} cacheData - Cache data to check
+ * @returns {boolean} True if cache is valid, false otherwise
+ */
+function isCacheValid(cacheData) {
+  if (!cacheData || !cacheData.timestamp) return false;
+  
+  const cacheTime = new Date(cacheData.timestamp).getTime();
+  const now = Date.now();
+  
+  // Cache is invalid if timestamp is in the future
+  if (cacheTime > now) {
+    console.warn('Cache has future timestamp, invalidating:', cacheData.timestamp);
+    return false;
+  }
+  
+  return true;
+}
+
+/**
  * Get cached data with unified approach
  */
 async function getCachedData(dataType, period, fetchFunction, forceRefresh = false, options = {}) {
@@ -246,6 +266,10 @@ async function getCachedData(dataType, period, fetchFunction, forceRefresh = fal
   
   // Define unified cache key without period suffix
   const cacheKey = `ardor_${dataType}`;
+  
+  // Before this function runs, log the cache file path for debugging
+  const cacheFilePath = path.join(CACHE_DIR, `${cacheKey}.json`);
+  console.log(`[Cache] Looking for data in: ${cacheFilePath}`);
   
   // Define filter options based on data type
   const filterOptions = {
@@ -269,9 +293,9 @@ async function getCachedData(dataType, period, fetchFunction, forceRefresh = fal
     // Check if cache exists and is valid
     const cacheData = readJSON(cacheKey);
     
-    // If we need fresh data (forced refresh or no cache)
-    if (forceRefresh || !cacheData) {
-      console.log(`Fetching fresh ${dataType} data (forceRefresh=${forceRefresh})`);
+    // If we need fresh data (forced refresh, no cache, or invalid cache)
+    if (forceRefresh || !cacheData || !isCacheValid(cacheData)) {
+      console.log(`Fetching fresh ${dataType} data (forceRefresh=${forceRefresh}, validCache=${cacheData ? isCacheValid(cacheData) : false})`);
       
       // Get fresh data using the provided function
       const freshData = await fetchFunction();
@@ -363,5 +387,8 @@ module.exports = {
   getPeriodCutoff,
   filterDataByPeriod,
   getCachedData,
-  applyPeriodFilter
+  applyPeriodFilter,
+  writeJSON, // Re-export writeJSON for convenience
+  readJSON,   // Re-export readJSON for convenience
+  isCacheValid // Export the new function
 };

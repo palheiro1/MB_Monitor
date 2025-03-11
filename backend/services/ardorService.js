@@ -12,6 +12,7 @@ const { getMorphings } = require('./ardor/morphing');
 const { getGiftzSales } = require('./ardor/giftz');
 const { getActiveUsers } = require('./ardor/users');
 const { CACHE_TTL } = require('../config'); // Add this import
+const { readJSON, writeJSON } = require('../utils/jsonStorage');
 
 // Use the same Ardor epoch constant for consistency
 const ARDOR_EPOCH = 1514764800000; // January 1, 2018 00:00:00 UTC in milliseconds
@@ -101,7 +102,10 @@ async function init() {
     await getTrades(false);
     await getCardBurns(false);
     await getCraftings(false);
-    await getMorphings(false);
+    
+    // Force refresh morphings on startup
+    console.log('Forcing refresh of morphings data on startup');
+    await getMorphings(true);
     
     console.log('Ardor service initialized');
   } catch (error) {
@@ -109,6 +113,13 @@ async function init() {
     throw error; // Re-throw to let the application handle it
   }
 }
+
+// Set up automatic cache refresh for morphs specifically to help debug
+setInterval(() => {
+  console.log('Running scheduled morphs cache refresh...');
+  getMorphings(true)
+    .catch(err => console.error('Error refreshing morphs cache:', err));
+}, CACHE_TTL * 2 * 1000); // Twice the normal TTL
 
 // Set up automatic cache refresh
 setInterval(() => {
@@ -138,7 +149,9 @@ module.exports = {
   getCardBurns,
   getTrades,        // Not getArdorTrades
   getCraftings,     // Not getCrafts
-  getMorphings,
+  getMorphings, // Make sure this is exported!
   getGiftzSales,
-  getActiveUsers
+  getActiveUsers,
+  ardorTimestampToDate,
+  dateToArdorTimestamp
 };

@@ -20,7 +20,7 @@ body {
   color: var(--text-dark);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
-  padding: 0;
+  padding-top: 70px; /* Add padding to prevent content from hiding behind the navbar */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -31,6 +31,12 @@ body {
   background-color: var(--card-bg);
   box-shadow: var(--shadow);
   padding: 0.75rem 1rem;
+  z-index: 1030; /* Ensure navbar is above other elements */
+  transition: box-shadow 0.3s ease; /* Smooth transition for shadow effect */
+}
+
+.navbar.fixed-top {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Stronger shadow when fixed */
 }
 
 .navbar-brand {
@@ -706,4 +712,46 @@ body {
 /* Animation for Tab Transitions */
 .tab-pane.fade {
   transition: opacity 0.25s ease-in-out;
+}
+
+/* Add these styles to properly display card names */
+.transaction-card .card-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  color: #0d6efd; /* Bootstrap primary color */
+}
+
+.trade-card .card-name {
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* Make card names stand out more with the new class */
+.card-name-display {
+  display: block !important;
+  font-weight: bold !important;
+  margin-bottom: 10px !important;
+  color: #0d6efd !important;
+}
+
+/* Enhanced card name styles specifically for trade cards */
+.trade-card .card-name {
+  display: block !important; /* Force display */
+  font-weight: bold !important;
+  font-size: 1.1rem !important;
+  margin-bottom: 10px !important;
+  color: #0d6efd !important;
+  min-height: 1.5rem; /* Ensure space is allocated even if empty */
+  border-bottom: 1px dotted rgba(0,0,0,0.1); /* Add subtle separator */
+  padding-bottom: 5px; /* Add padding below card name */
+}
+
+/* Fix for any potential interactions with other styles */
+.transaction-body .card-name {
+  display: block !important;
+  height: auto !important;
+  visibility: visible !important;
+  overflow: visible !important;
+  opacity: 1 !important;
 }

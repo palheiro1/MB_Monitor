@@ -163,8 +163,8 @@ export function renderBurnCards(burns, container, newItemIds = []) {
       
       const burnerNameEl = card.querySelector('.burner-name');
       if (burnerNameEl) {
-        // Use complete address without shortening
-        burnerNameEl.textContent = burn.sender || burn.senderRS || 'Unknown';
+        // Always prioritize senderRS format over numeric sender
+        burnerNameEl.textContent = burn.senderRS || burn.sender || 'Unknown';
       }
       
       // Set transaction time

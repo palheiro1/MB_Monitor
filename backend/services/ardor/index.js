@@ -5,6 +5,8 @@ const { getMorphings } = require('./morphing');
 const { getCardBurns } = require('./burns');
 const { getActiveUsers } = require('./users');
 const { getTrackedAssets } = require('./assets');
+const { ARDOR_API_URL } = require('../../config');
+const { logApiNodeInfo } = require('../../utils/apiUtils');
 
 async function getAllData() {
   try {
@@ -47,7 +49,12 @@ async function getAllData() {
   }
 }
 
-function init() {
+async function initializeArdorService() {
+  console.log('Initializing Ardor service and populating caches...');
+  
+  // Log information about which API node we're using
+  logApiNodeInfo(ARDOR_API_URL);
+  
   // Update cache immediately
   getAllData().catch(err => console.error('Initial Ardor cache update failed:', err.message));
   // Set up periodic cache updates
@@ -66,5 +73,5 @@ module.exports = {
   getActiveUsers,
   getTrackedAssets,
   getAllData,
-  init
+  init: initializeArdorService
 };

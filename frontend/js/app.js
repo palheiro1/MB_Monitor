@@ -353,7 +353,8 @@ function displayCardBurns(burns) {
       
       const burnerElement = card.querySelector('.burner-name');
       if (burnerElement) {
-        burnerElement.textContent = burn.senderRS || 'Unknown';
+        // Always use senderRS (Ardor address) when available
+        burnerElement.textContent = burn.senderRS || burn.sender || 'Unknown';
       }
       
       // Find amount element - handle different DOM structures
@@ -380,6 +381,12 @@ function displayCardBurns(burns) {
  */
 function displayTrades(trades) {
   console.log("Displaying trades:", trades);
+  
+  // Simple logging to confirm data structure
+  if (trades && trades.length > 0) {
+    console.log("Sample trade object:", trades[0]);
+    console.log("Has card_name property:", 'card_name' in trades[0]);
+  }
   
   // Get the total trades count from the page URL's search parameters if available
   const urlParams = new URLSearchParams(window.location.search);
@@ -422,16 +429,41 @@ function displayTrades(trades) {
   // Display each trade - limit to first 50 for performance
   const displayTrades = sortedTrades.slice(0, 50);
   displayTrades.forEach((trade, index) => {
-    console.log(`Creating trade card ${index + 1}:`, trade);
-    
     try {
       // Clone the template
       const card = templates.tradeCard.content.cloneNode(true);
       
-      // Fill in data
+      // Fill in card name with enhanced logging and robust handling
       const cardNameElement = card.querySelector('.card-name');
       if (cardNameElement) {
-        cardNameElement.textContent = trade.card_name || 'Unknown Card';
+        // Try multiple potential property names and log what we find
+        let cardName = 'Unknown Card';
+        
+        if (trade.card_name) {
+          cardName = trade.card_name;
+          console.log(`Found card_name: ${trade.card_name} for trade ${index}`);
+        } 
+        else if (trade.cardName) {
+          cardName = trade.cardName;
+          console.log(`Found cardName: ${trade.cardName} for trade ${index}`);
+        }
+        else if (trade.name) {
+          cardName = trade.name;
+          console.log(`Using name: ${trade.name} for trade ${index}`);
+        }
+        else if (trade.raw_data && trade.raw_data.name) {
+          cardName = trade.raw_data.name;
+          console.log(`Using raw_data.name: ${trade.raw_data.name} for trade ${index}`);
+        }
+        
+        // Set the text content
+        cardNameElement.textContent = cardName;
+        
+        // Ensure the element is visible by explicitly setting display style
+        cardNameElement.style.display = 'block';
+        cardNameElement.classList.add('card-name-display');
+      } else {
+        console.warn(`Card name element not found in template for trade ${index}`);
       }
       
       const timeElement = card.querySelector('.transaction-time');
@@ -473,8 +505,9 @@ function displayTrades(trades) {
       
       // Add the card to the container
       elements.tradeCardsContainer.appendChild(card);
+      
     } catch (error) {
-      console.error("Error creating trade card:", error);
+      console.error(`Error creating trade card ${index + 1}:`, error);
     }
   });
   
