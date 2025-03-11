@@ -6,6 +6,7 @@ const ardorService = require('./services/ardorService');
 const polygonService = require('./services/polygonService');
 const { ARDOR_API_URL, ARDOR_NODE } = require('./config');
 const { logApiNodeInfo, checkNodeConnectivity } = require('./utils/apiUtils');
+const cacheStatsRoutes = require('./api/cacheStats');
 
 // Create Express app
 const app = express();
@@ -19,6 +20,7 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 
 // API routes
 app.use('/api', api);
+app.use('/api/cache', cacheStatsRoutes);
 
 // Add this BEFORE the catch-all route that serves the HTML
 app.use((req, res, next) => {

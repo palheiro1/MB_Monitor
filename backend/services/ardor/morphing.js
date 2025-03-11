@@ -9,6 +9,7 @@ const { writeJSON } = require('../../utils/jsonStorage'); // FIX: Import from co
 const { ARDOR_API_URL, ARDOR_CHAIN_ID, MORPH_ACCOUNT } = require('../../config');
 const { getTrackedAssets } = require('./assets');
 const { fetchMorphTransactions, processMorphData, ardorTimestampToDate } = require('./morphingUtils');
+const { getCacheStats } = require('../../utils/apiUtils');
 
 // Constants
 const MORPHING_MESSAGE = "cardmorph";
@@ -216,8 +217,17 @@ async function fetchMorphingsData() {
     
     console.log(`Found ${transfers.length} potential morph transfers to process`);
     
+    // Get cache stats before processing
+    const beforeCacheStats = getCacheStats();
+    console.log(`Cache stats before processing: ${JSON.stringify(beforeCacheStats)}`);
+    
     // Process the transfers to identify actual morph operations
     const morphs = await processMorphData(transfers);
+    
+    // Get cache stats after processing to measure efficiency
+    const afterCacheStats = getCacheStats();
+    console.log(`Cache stats after processing: ${JSON.stringify(afterCacheStats)}`);
+    console.log(`Cache efficiency: ${afterCacheStats.valid - beforeCacheStats.valid} new cached items used`);
     
     console.log(`Successfully identified ${morphs.length} valid morphing operations`);
     

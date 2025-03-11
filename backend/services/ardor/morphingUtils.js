@@ -20,6 +20,47 @@ function ardorTimestampToDate(timestamp) {
 const assetInfoCache = {};
 
 /**
+ * Transaction cache to prevent duplicate API calls
+ */
+const transactionCache = new Map();
+
+/**
+ * Get transaction with caching
+ * @param {string} hashId - Transaction hash ID
+ * @returns {Promise<Object>} Transaction data
+ */
+async function getTransactionWithCache(hashId) {
+  // Check cache first before making API call
+  if (transactionCache.has(hashId)) {
+    return transactionCache.get(hashId);
+  }
+  
+  // Make API request if not in cache
+  try {
+    const response = await makeRetryableRequest({
+      url: ARDOR_API_URL,
+      params: {
+        requestType: 'getTransaction',
+        fullHash: hashId,
+        includePrunable: true,
+        chain: ARDOR_CHAIN_ID
+      }
+    });
+    
+    if (!response.data || response.data.errorCode) {
+      return null;
+    }
+    
+    // Store in cache
+    transactionCache.set(hashId, response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching transaction ${hashId}:`, error.message);
+    return null;
+  }
+}
+
+/**
  * Fetch asset info
  * @param {string} assetId - Asset ID
  * @returns {Promise<Object>} Asset info
@@ -198,44 +239,44 @@ async function processMorphData(transfers) {
   let potentialMorphMsgs = 0;
   console.log(`Starting to process ${transfers.length} transfers to find morph operations`);
   
+  // Create a Set to track processed transactions and avoid duplicates
+  const processedTransactions = new Set();
+  
   for (const transfer of transfers) {
     try {
       const hashId = transfer.assetTransferFullHash || transfer.fullHash || 'unknown';
       
+      // Skip if we've already processed this transaction
+      if (processedTransactions.has(hashId)) {
+        continue;
+      }
+      processedTransactions.add(hashId);
+      
       processedCount++;
       
-      // Get the full transaction to check for message using retryable request
-      const response = await makeRetryableRequest({
-        url: ARDOR_API_URL,
-        params: {
-          requestType: 'getTransaction',
-          fullHash: hashId,
-          includePrunable: true,
-          chain: ARDOR_CHAIN_ID
-        }
-      });
-      
-      if (!response.data || response.data.errorCode) {
+      // Get the full transaction using our cache function
+      const transactionData = await getTransactionWithCache(hashId);
+      if (!transactionData) {
         continue;
       }
       
       // Log transaction keys only once
       if (processedCount === 1) {
-        console.log(`Sample transaction object keys: ${Object.keys(response.data).join(', ')}`);
-        if (response.data.attachment) {
-          console.log(`Sample attachment keys: ${Object.keys(response.data.attachment).join(', ')}`);
+        console.log(`Sample transaction object keys: ${Object.keys(transactionData).join(', ')}`);
+        if (transactionData.attachment) {
+          console.log(`Sample attachment keys: ${Object.keys(transactionData.attachment).join(', ')}`);
         }
       }
       
       // Check for attachment and message
-      if (!response.data.attachment || !response.data.attachment.message) {
+      if (!transactionData.attachment || !transactionData.attachment.message) {
         continue;
       }
       
       messagesFoundCount++;
       
       // Get the raw message
-      const rawMessage = response.data.attachment.message;
+      const rawMessage = transactionData.attachment.message;
       
       // Log a sample of raw messages (up to 10) to help with debugging
       if (messagesFoundCount <= 10) {
@@ -292,7 +333,7 @@ async function processMorphData(transfers) {
           }
           
           // Get recipient information (the user who received the morphed card)
-          const recipientRS = transfer.recipientRS || response.data.recipientRS;
+          const recipientRS = transfer.recipientRS || transactionData.recipientRS;
           
           // Construct morph operation record
           const morphOp = {
@@ -324,12 +365,15 @@ async function processMorphData(transfers) {
     // Add progress logging
     if (processedCount % 500 === 0) {
       console.log(`Processed ${processedCount}/${transfers.length} transfers, found ${morphMessagesCount} morph operations so far...`);
+      // Log cache efficiency stats
+      console.log(`Cache status: ${transactionCache.size} transactions cached`);
     }
   }
   
   console.log(`Processing complete: ${processedCount} transfers, found ${messagesFoundCount} messages, ` +
               `identified ${morphMessagesCount} morph operations`);
   console.log(`Found ${potentialMorphMsgs} messages containing "cardmorph" keyword`);
+  console.log(`Cache efficiency: ${transactionCache.size} unique transactions cached out of ${processedCount} processed`);
   
   return morphOperations;
 }
@@ -395,5 +439,6 @@ module.exports = {
   fetchMorphTransactions,
   processMorphData,
   getAssetInfo,
-  ardorTimestampToDate
+  ardorTimestampToDate,
+  getTransactionWithCache // Export the new cached function
 };

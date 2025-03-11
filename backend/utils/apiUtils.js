@@ -15,6 +15,20 @@ const nodeStatus = {
   checkInterval: 60000 // Check primary again after 1 minute
 };
 
+// Request cache for GET requests - using a Map with compound keys
+const requestCache = new Map();
+const REQUEST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes by default
+
+/**
+ * Create a cache key from request parameters
+ * @param {string} url - The URL
+ * @param {Object} params - Request parameters
+ * @returns {string} Cache key
+ */
+function createCacheKey(url, params) {
+  return `${url}|${JSON.stringify(params || {})}`;
+}
+
 /**
  * Get the current API URL to use, with fallback logic
  * @returns {string} The API URL to use
@@ -82,6 +96,8 @@ async function checkPrimaryHealth() {
  * @param {number} [options.maxRetries=3] - Maximum number of retry attempts
  * @param {number} [options.initialDelay=1000] - Initial delay before retry in ms
  * @param {number} [options.maxDelay=10000] - Maximum delay between retries in ms
+ * @param {boolean} [options.useCache=true] - Whether to use cache for this request
+ * @param {number} [options.cacheTTL] - Cache TTL in ms (default 5 minutes)
  * @returns {Promise<Object>} - The API response
  */
 async function makeRetryableRequest(options) {
@@ -93,7 +109,9 @@ async function makeRetryableRequest(options) {
     params,
     maxRetries = 3,
     initialDelay = 1000,
-    maxDelay = 10000
+    maxDelay = 10000,
+    useCache = true, // Default to using cache
+    cacheTTL = REQUEST_CACHE_TTL
   } = options;
   
   let url = originalUrl;
@@ -101,6 +119,17 @@ async function makeRetryableRequest(options) {
   // If this is an Ardor API request, use the current node URL
   if (originalUrl === ARDOR_API_URL || originalUrl === ARDOR_FALLBACK_API_URL) {
     url = nodeStatus.currentUrl;
+  }
+  
+  // For GET requests, check cache first if enabled
+  if (useCache) {
+    const cacheKey = createCacheKey(url, params);
+    const cached = requestCache.get(cacheKey);
+    
+    if (cached && Date.now() < cached.expiry) {
+      // Return cached response if valid
+      return cached.response;
+    }
   }
   
   let lastError;
@@ -115,6 +144,21 @@ async function makeRetryableRequest(options) {
       
       // Make the request
       const response = await axios.get(url, { params });
+      
+      // Cache successful GET responses if caching is enabled
+      if (useCache) {
+        const cacheKey = createCacheKey(url, params);
+        requestCache.set(cacheKey, {
+          response: response,
+          expiry: Date.now() + cacheTTL
+        });
+        
+        // Periodically clean up expired cache entries
+        if (Math.random() < 0.01) { // ~1% chance on each request
+          cleanupExpiredCache();
+        }
+      }
+      
       return response;
     } catch (error) {
       lastError = error;
@@ -162,6 +206,49 @@ async function makeRetryableRequest(options) {
   }
   
   throw lastError;
+}
+
+/**
+ * Clean up expired cache entries
+ */
+function cleanupExpiredCache() {
+  const now = Date.now();
+  let expiredCount = 0;
+  
+  for (const [key, value] of requestCache.entries()) {
+    if (value.expiry < now) {
+      requestCache.delete(key);
+      expiredCount++;
+    }
+  }
+  
+  if (expiredCount > 0) {
+    console.log(`Cleaned up ${expiredCount} expired cache entries. Current cache size: ${requestCache.size}`);
+  }
+}
+
+/**
+ * Get cache statistics
+ * @returns {Object} Cache statistics
+ */
+function getCacheStats() {
+  const now = Date.now();
+  let validCount = 0;
+  let expiredCount = 0;
+  
+  requestCache.forEach(value => {
+    if (value.expiry >= now) {
+      validCount++;
+    } else {
+      expiredCount++;
+    }
+  });
+  
+  return {
+    total: requestCache.size,
+    valid: validCount,
+    expired: expiredCount
+  };
 }
 
 /**
@@ -230,5 +317,7 @@ module.exports = {
   logApiNodeInfo,
   checkNodeConnectivity,
   getCurrentApiUrl,
-  nodeStatus
+  nodeStatus,
+  getCacheStats,
+  clearRequestCache: () => requestCache.clear()
 };
