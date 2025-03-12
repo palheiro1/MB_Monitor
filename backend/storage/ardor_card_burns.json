@@ -1,6 +1,44 @@
 {
   "burns": [
     {
+      "quantityQNT": "5",
+      "chain": 2,
+      "assetTransferFullHash": "335d1edde0e868e073f45a315cd0dbf23d37c2611cc6b6824c465e0355fa8278",
+      "senderRS": "ARDOR-4V3B-TVQA-Q6LF-GMH3T",
+      "sender": "17043296434910227497",
+      "recipientRS": "ARDOR-Q9KZ-74XD-WERK-CV6GB",
+      "recipient": "11869407417168764479",
+      "asset": "13430257599807483745",
+      "height": 3849809,
+      "timestamp": 227015296,
+      "id": "335d1edde0e868e073f45a315cd0dbf23d37c2611cc6b6824c465e0355fa8278",
+      "fullHash": "335d1edde0e868e073f45a315cd0dbf23d37c2611cc6b6824c465e0355fa8278",
+      "assetId": "13430257599807483745",
+      "assetName": "mythical49",
+      "assetDescription": "{\"fullhash\": \"baa8efc2fe5582d30e7a0d6648aaf29660fb551cb1c5ec1897e48f59c623db9c\", \"name\": \"Werewolf\", \"channel\": \"Europa\", \"culture\": \"S\\u00e1pmi\", \"description\": \"By the spell of a shaman or by his own wish a Sami can turn into a wolf. To do this, he must turn around a very leafy tree to the right. If he returns to the same tree within two weeks and turns around the other way, he can take his human form again.\", \"type\": \"Terrestrial\", \"rarity\": \"common\"}",
+      "burnDate": "2025-03-12T11:48:16.000Z",
+      "quantityFormatted": 5
+    },
+    {
+      "quantityQNT": "3",
+      "chain": 2,
+      "assetTransferFullHash": "84f71ac16793ca954fcf0bb38c7370328ac68c4ebbe037155e1077e885d25dd3",
+      "senderRS": "ARDOR-8WCM-6LBD-3AC9-9F22P",
+      "sender": "8827069720377389395",
+      "recipientRS": "ARDOR-Q9KZ-74XD-WERK-CV6GB",
+      "recipient": "11869407417168764479",
+      "asset": "13430257599807483745",
+      "height": 3849803,
+      "timestamp": 227014953,
+      "id": "84f71ac16793ca954fcf0bb38c7370328ac68c4ebbe037155e1077e885d25dd3",
+      "fullHash": "84f71ac16793ca954fcf0bb38c7370328ac68c4ebbe037155e1077e885d25dd3",
+      "assetId": "13430257599807483745",
+      "assetName": "mythical49",
+      "assetDescription": "{\"fullhash\": \"baa8efc2fe5582d30e7a0d6648aaf29660fb551cb1c5ec1897e48f59c623db9c\", \"name\": \"Werewolf\", \"channel\": \"Europa\", \"culture\": \"S\\u00e1pmi\", \"description\": \"By the spell of a shaman or by his own wish a Sami can turn into a wolf. To do this, he must turn around a very leafy tree to the right. If he returns to the same tree within two weeks and turns around the other way, he can take his human form again.\", \"type\": \"Terrestrial\", \"rarity\": \"common\"}",
+      "burnDate": "2025-03-12T11:42:33.000Z",
+      "quantityFormatted": 3
+    },
+    {
       "quantityQNT": "1",
       "chain": 2,
       "assetTransferFullHash": "bbd97ea2e53cef9b85d2a9ca904578f622e40b58f787031ddd4a3f276f4bc653",
@@ -115,8 +153,9 @@
       "quantityFormatted": 1
     }
   ],
-  "count": 6,
-  "timestamp": "2025-03-12T15:40:36.982Z",
+  "count": 8,
+  "timestamp": "2025-03-12T20:29:33.191Z",
+  "totalQuantity": 8,
   "period": "all",
   "cacheVersion": 2
 }

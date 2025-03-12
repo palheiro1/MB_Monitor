@@ -1,6 +1,33 @@
 {
   "craftings": [
     {
+      "id": "65db452e77369050f45c2b41c127db51e87697b1725873275af7e799b5ab06c5",
+      "timestamp": 227015296,
+      "date": "2025-03-12T11:48:16.000Z",
+      "timestampISO": "2025-03-12T11:48:16.000Z",
+      "recipient": "ARDOR-24CM-EQMW-BKXE-22QR2",
+      "assetId": "10956456574154580310",
+      "assetName": "mythical33",
+      "cardName": "Mokèlé-mbèmbé",
+      "cardRarity": "rare",
+      "cardType": "Aquatic",
+      "cardsUsed": 2,
+      "fullHash": "65db452e77369050f45c2b41c127db51e87697b1725873275af7e799b5ab06c5",
+      "details": {
+        "isCraftOperation": true,
+        "submittedBy": "CardCraftGEM",
+        "cardsUsed": 2,
+        "amountNQTReceived": 150,
+        "amountNQTSpent": 150,
+        "transactionTrigger": "0d36c653c8d660403b4ed03c32052a2f94ed45730730aa310f4211df23f7ad4f",
+        "transactionSpent": [
+          "0d36c653c8d660403b4ed03c32052a2f94ed45730730aa310f4211df23f7ad4f",
+          "8bbc1e9208d8d9b966a66790d697039b88d73d809fc69329c7d1216abb6d66b0"
+        ],
+        "serialForRandom": "0"
+      }
+    },
+    {
       "id": "05047f072f0eace390d491643d396d5457d5a33aa0c898dc5a75e2b90c8a529c",
       "timestamp": 226450361,
       "date": "2025-03-05T22:52:41.000Z",
@@ -57382,8 +57409,9 @@
       }
     }
   ],
-  "count": 2723,
-  "timestamp": "2025-03-12T15:40:37.024Z",
+  "count": 2724,
+  "timestamp": "2025-03-12T20:30:27.089Z",
+  "totalQuantity": 2724,
   "period": "all",
   "cacheVersion": 2
 }

@@ -272,9 +272,11 @@ async function getCraftings(forceRefresh = false, period = 'all') {
       }
     }
     
-    console.log('Fetching fresh craftings data');
-    // Call the original function
+    console.log('Fetching fresh craftings data with forceRefresh:', forceRefresh);
+    // Call the original function - IMPORTANT: pass the forceRefresh parameter
     const result = await getOriginalCraftings(forceRefresh);
+    
+    console.log(`Retrieved ${result.craftings ? result.craftings.length : 0} craft operations`);
     
     // Cache the results with metadata
     const resultWithMetadata = {
@@ -383,12 +385,14 @@ async function getMorphings(forceRefresh = false, period = 'all') {
       }
     }
     
-    console.log('Fetching fresh morphings data');
-    // Call the original function
+    console.log('Fetching fresh morphings data with forceRefresh:', forceRefresh);
+    // Call the original function - IMPORTANT: pass the forceRefresh parameter
     const result = await getOriginalMorphings(forceRefresh);
     
     // The original function may use "morphs" instead of "morphings"
     const morphingsData = result.morphings || result.morphs || [];
+    
+    console.log(`Retrieved ${morphingsData.length} morph operations`);
     
     // Calculate total quantity - make sure it's calculated if not present in original result
     const totalQuantity = result.totalQuantity || 
@@ -474,51 +478,101 @@ async function getMorphings(forceRefresh = false, period = 'all') {
 }
 
 /**
+ * Add manual refresh function for critical data
+ */
+async function refreshAllData() {
+  console.log('Manually refreshing all critical Ardor data...');
+  
+  try {
+    const results = await Promise.all([
+      getTrades('all', true),
+      getCraftings(true),
+      getMorphings(true),
+      getCardBurns(true)
+    ]);
+    
+    console.log(`Manual refresh completed successfully:
+      - Trades: ${results[0].count}
+      - Crafts: ${results[1].count}
+      - Morphs: ${results[2].count}
+      - Burns: ${results[3].count}`);
+    
+    return {
+      success: true,
+      counts: {
+        trades: results[0].count,
+        crafts: results[1].count,
+        morphs: results[2].count,
+        burns: results[3].count
+      }
+    };
+  } catch (error) {
+    console.error('Error during manual refresh:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
  * Initialize service - start periodic cache updates
  */
 async function init() {
   console.log('Initializing Ardor service and populating caches...');
   
   try {
-    // Initialize tracked assets cache
-    await getTrackedAssets(true);
-    
-    // Initialize other data caches as needed
-    // Only force refresh on startup for critical data
-    await getTrades(false);
-    await getCardBurns(false);
-    await getCraftings(false);
-    
-    // Force refresh morphings on startup
-    console.log('Forcing refresh of morphings data on startup');
-    await getMorphings(true);
+    // Force refresh all critical data on startup
+    console.log('Forcing refresh of all data on startup');
+    await refreshAllData();
     
     console.log('Ardor service initialized');
+    
+    // Add cache events monitoring
+    cacheService.events.on('error', (event) => {
+      console.error(`Cache error in ${event.store} store:`, event.error);
+    });
+    
+    cacheService.events.on('eviction', (event) => {
+      console.log(`Cache eviction in ${event.store}: removed ${event.itemsRemoved} items`);
+    });
+    
+    return true;
   } catch (error) {
     console.error('Error initializing Ardor service:', error);
     throw error; // Re-throw to let the application handle it
   }
- 
-  // Add cache events monitoring
-  cacheService.events.on('error', (event) => {
-    console.error(`Cache error in ${event.store} store:`, event.error);
-  });
-  
-  cacheService.events.on('eviction', (event) => {
-    console.log(`Cache eviction in ${event.store}: removed ${event.itemsRemoved} items`);
-  });
 }
 
-// Set up automatic cache refresh for morphs specifically to help debug
+// Set up automatic cache refresh for critical data types
+setInterval(() => {
+  console.log('Running scheduled trades cache refresh...');
+  getTrades('all', true)
+    .catch(err => console.error('Error refreshing trades cache:', err));
+}, CACHE_TTL * 1000); // Standard refresh interval
+
+setInterval(() => {
+  console.log('Running scheduled crafts cache refresh...');
+  getCraftings(true)
+    .catch(err => console.error('Error refreshing crafts cache:', err));
+}, CACHE_TTL * 1000); // Same refresh interval as trades
+
+setInterval(() => {
+  console.log('Running scheduled burns cache refresh...');
+  getCardBurns(true)
+    .catch(err => console.error('Error refreshing burns cache:', err));
+}, CACHE_TTL * 1000); // Same refresh interval as trades
+
+// Update the existing morphs refresh to match the standard interval
 setInterval(() => {
   console.log('Running scheduled morphs cache refresh...');
   getMorphings(true)
     .catch(err => console.error('Error refreshing morphs cache:', err));
-}, CACHE_TTL * 2 * 1000); // Twice the normal TTL
+}, CACHE_TTL * 1000); // Changed to standard refresh interval (was 2x before)
 
-// Set up automatic cache refresh
+// Set up automatic cache refresh for assets (unchanged)
 setInterval(() => {
-  console.log('Running scheduled cache refresh...');
+  console.log('Running scheduled assets cache refresh...');
   getTrackedAssets(true)
     .catch(err => console.error('Error refreshing assets cache:', err));
 }, CACHE_TTL * 1000);
@@ -540,13 +594,15 @@ function processTransactionData(transaction) {
 // Export all service functions with consistent naming
 module.exports = {
   init,
-  getTrackedAssets,
+  ardorTimestampToDate,
+  dateToArdorTimestamp,
   getCardBurns,
-  getTrades,
   getCraftings,
-  getMorphings, // Make sure this is exported!
+  getMorphings,
+  getTrackedAssets,
+  getTrades,
   getGiftzSales,
   getActiveUsers,
-  ardorTimestampToDate,
-  dateToArdorTimestamp
+  refreshAllData,
+  getAllData 
 };
