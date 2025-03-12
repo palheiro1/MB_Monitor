@@ -325,7 +325,7 @@ async function getTrades(period = 'all', forceRefresh = false) {
     const stats = calculateTradeStats(filteredTrades);
     
     // Prepare the result with filtered data
-    return {
+    const result = {
       ardor_trades: filteredTrades,
       count: filteredTrades.length,
       stats: stats,
@@ -333,6 +333,22 @@ async function getTrades(period = 'all', forceRefresh = false) {
       period: period,
       totalTradesInCache: masterCache.count
     };
+
+    // Calculate total quantity of cards traded
+    if (result && result.ardor_trades) {
+      let totalQuantity = 0;
+      
+      for (const trade of result.ardor_trades) {
+        // Sum up the quantity from each trade (default to 1 if not specified)
+        totalQuantity += (trade.quantity || 1);
+      }
+      
+      // Add totalQuantity to result
+      result.totalQuantity = totalQuantity;
+      console.log(`Calculated total of ${totalQuantity} cards traded in ${result.ardor_trades.length} trades`);
+    }
+
+    return result;
   } catch (error) {
     console.error('Error fetching Ardor trades:', error.message);
     throw new Error(`Failed to fetch Ardor trades: ${error.message}`);

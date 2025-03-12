@@ -6,127 +6,107 @@
 
 import { getState, setState } from '../state/index.js';
 import { updateStats } from '../components/statistics.js';
-import { renderAllCardsWithAnimation } from '../components/transactions/index.js';
-import { updateLastUpdateTimestamp, hideLoading, showError } from '../components/ui-manager.js';
+import { renderAllCards } from '../components/transactions/index.js';
+import { 
+  updateLastUpdateTimestamp, 
+  showLoading,
+  hideLoading, 
+  showError,
+  updateStatusBadge
+} from '../components/ui-manager.js';
+// Import all the necessary fetch functions from data.js
+import {
+  fetchTrades,
+  fetchCrafts,
+  fetchMorphs,
+  fetchBurns,
+  fetchUsers, 
+  fetchGiftz,
+  fetchActivityData
+} from '../api/data.js';
 import { DEFAULT_PERIOD } from '../config.js';
 
 // API endpoints
 const API_BASE = '/api'; // Default base URL
 
 /**
- * Fetch all data from the API
- * @param {boolean} showLoading - Whether to show loading indicator
- * @returns {Promise<Object>} Combined data from all endpoints
+ * Fetch all data for the application
+ * @param {boolean} shouldShowLoading - Whether to show loading indicator
+ * @returns {Promise<Object>} Combined data object
  */
-export async function fetchAllData(showLoading = true) {
+export async function fetchAllData(shouldShowLoading = false) {
+  // Get current period from state
+  const currentPeriod = getState('currentPeriod') || 'all';
+  console.log(`Fetching all data for period: ${currentPeriod}`);
+  
+  if (shouldShowLoading) {
+    showLoading();
+    updateStatusBadge('loading');
+  }
+
   try {
-    // Get the current period from state (fallback to default if not set)
-    const period = getState('currentPeriod') || DEFAULT_PERIOD;
-    console.log(`Fetching all data for period: ${period}`);
-    
-    // Store current data as previous for comparison
-    const currentData = getState('currentData');
-    if (currentData) {
-      setState('previousData', currentData);
+    // Store previous data to detect changes
+    const previousData = getState('currentData');
+    if (previousData) {
+      setState('previousData', previousData);
     }
-    
-    // Fetch all data in parallel, using the current period
-    const results = await Promise.allSettled([
-      fetchEndpoint(`/trades?period=${period}`),
-      fetchEndpoint(`/crafts?period=${period}`),
-      fetchEndpoint(`/morphs?period=${period}`),
-      fetchEndpoint(`/burns?period=${period}`),
-      fetchEndpoint(`/users?period=${period}`),
-      fetchEndpoint(`/giftz?period=${period}`)
+
+    // Fetch all data in parallel with the current period
+    // Use the functions from data.js
+    const [tradesData, burnsData, craftsData, morphsData, giftzData, usersData, activityData] = await Promise.all([
+      fetchTrades(currentPeriod),
+      fetchBurns(currentPeriod),
+      fetchCrafts(currentPeriod),
+      fetchMorphs(currentPeriod),
+      fetchGiftz(currentPeriod),
+      fetchUsers(currentPeriod),
+      fetchActivityData(currentPeriod)
     ]);
-    
-    // Destructure results with better error handling
-    const [
-      tradesResult, 
-      craftsResult, 
-      morphsResult, 
-      burnsResult, 
-      usersResult, 
-      giftzResult
-    ] = results;
-    
-    // Process results with detailed logging
-    const tradesData = processResult(tradesResult, 'trades');
-    const craftsData = processResult(craftsResult, 'crafts');
-    const morphsData = processResult(morphsResult, 'morphs');
-    const burnsData = processResult(burnsResult, 'burns');
-    const usersData = processResult(usersResult, 'users');
-    const giftzData = processResult(giftzResult, 'giftz');
-    
-    // Log data structure details for diagnostics
-    console.log('Data structure summary:', {
-      trades: {
-        hasData: !!tradesData,
-        ardorTrades: tradesData?.ardor_trades?.length || 0,
-        polygonTrades: tradesData?.polygon_trades?.length || 0
-      },
-      crafts: {
-        hasData: !!craftsData,
-        count: craftsData?.count || 0,
-        craftsArray: Array.isArray(craftsData?.crafts),
-        craftsLength: craftsData?.crafts?.length || 0
-      },
-      morphs: {
-        hasData: !!morphsData,
-        count: morphsData?.count || 0,
-        morphsArray: Array.isArray(morphsData?.morphs),
-        morphsLength: morphsData?.morphs?.length || 0
-      },
-      burns: {
-        hasData: !!burnsData,
-        count: burnsData?.count || 0,
-        burnsArray: Array.isArray(burnsData?.burns),
-        burnsLength: burnsData?.burns?.length || 0
-      }
-    });
-    
-    // Combine into a single data object
-    const allData = {
+
+    // Create combined data object
+    const data = {
       tradesData,
+      burnsData,
       craftsData,
       morphsData,
-      burnsData,
-      usersData,
       giftzData,
+      usersData,
+      activityData,
       timestamp: new Date().toISOString()
     };
+
+    // Update state with new data
+    setState('currentData', data);
     
-    // Update state and UI
-    setState('currentData', allData);
-    
-    // Update stats and UI
-    updateStats(allData);
-    
-    try {
-      renderAllCardsWithAnimation();
-    } catch (renderError) {
-      console.error('Error rendering cards:', renderError);
-      showError('Error displaying data. Please check console for details.');
-    }
-    
-    if (typeof updateLastUpdateTimestamp === 'function') {
-      updateLastUpdateTimestamp();
-    }
-    
-    // Hide loading indicator if applicable
-    if (showLoading && typeof hideLoading === 'function') {
+    // Log what we got for debugging purposes
+    console.log('Fetched data by period:', currentPeriod, {
+      trades: tradesData?.count || 0,
+      burns: burnsData?.count || 0,
+      crafts: craftsData?.count || 0,
+      morphs: morphsData?.count || 0,
+      giftz: giftzData?.count || 0,
+      users: usersData?.count || 0
+    });
+
+    // Update UI with new data
+    updateStats(data);
+    renderAllCards();
+    updateLastUpdateTimestamp();
+
+    if (shouldShowLoading) {
       hideLoading();
+      updateStatusBadge('success');
     }
-    
-    // Make sure to return all the fetched data
-    return allData;
+
+    return data;
   } catch (error) {
     console.error('Error fetching data:', error);
-    if (showLoading && typeof hideLoading === 'function') {
+    if (shouldShowLoading) {
       hideLoading();
+      updateStatusBadge('error');
+      showError(`Failed to load data: ${error.message}`);
     }
-    showError('Failed to fetch data from server');
-    return {};
+    throw error;
   }
 }
 

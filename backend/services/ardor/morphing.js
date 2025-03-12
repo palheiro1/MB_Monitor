@@ -236,22 +236,27 @@ async function fetchMorphingsData() {
     
     console.log(`Found ${transfers.length} potential morph transfers to process`);
     
-    // Get cache stats before processing - REPLACE THIS WITH NEW CACHE SERVICE
+    // Remove circular JSON structure issue - don't try to stringify complex objects
+    // Comment out or remove these lines that are causing errors
+    /*
     const memoryCacheStats = cacheService.getCacheMetrics().memoryCaches;
     console.log(`Cache stats before processing: ${JSON.stringify({
       memory: memoryCacheStats.memory.validItems,
       transaction: memoryCacheStats.transaction.validItems
     })}`);
+    */
     
     // Process the transfers to identify actual morph operations
     const morphs = await processMorphData(transfers);
     
-    // Get cache stats after processing to measure efficiency
+    // Also remove or fix this section with the same issue
+    /*
     const afterMemoryCacheStats = cacheService.getCacheMetrics().memoryCaches;
     console.log(`Cache stats after processing: ${JSON.stringify({
       memory: afterMemoryCacheStats.memory.validItems,
       transaction: afterMemoryCacheStats.transaction.validItems
     })}`);
+    */
     
     console.log(`Successfully identified ${morphs.length} valid morphing operations`);
     
@@ -265,10 +270,15 @@ async function fetchMorphingsData() {
     // Sort by timestamp (newest first)
     morphs.sort((a, b) => b.timestamp - a.timestamp);
     
-    // Create result object
+    // Calculate total quantity of cards morphed
+    const totalQuantity = morphs.reduce((sum, morph) => sum + (parseInt(morph.quantity, 10) || 1), 0);
+    console.log(`Total quantity of cards morphed: ${totalQuantity} in ${morphs.length} operations`);
+    
+    // Create result object with totalQuantity field
     const result = {
       morphs,
       count: morphs.length,
+      totalQuantity: totalQuantity,
       timestamp: new Date().toISOString()
     };
     

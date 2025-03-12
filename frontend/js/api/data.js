@@ -111,4 +111,151 @@ export async function fetchActivityData(period = '30d') {
   }
 }
 
+/**
+ * Fetch users data with period filtering
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Users data
+ */
+export async function fetchUsersData(period = 'all') {
+  try {
+    console.log(`Fetching users data for period: ${period}`);
+    const response = await fetch(`/api/users?period=${period}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching users data:', error);
+    return { count: 0, ardor_users: [] };
+  }
+}
+
+/**
+ * Fetch morphs data with period filtering
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Morphs data
+ */
+export async function fetchMorphsData(period = 'all') {
+  try {
+    console.log(`Fetching morphs data for period: ${period}`);
+    const response = await fetch(`/api/morphs?period=${period}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching morphs data:', error);
+    return { count: 0, morphs: [] };
+  }
+}
+
+/**
+ * Fetch giftz sales data with period filtering
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Giftz sales data
+ */
+export async function fetchGiftzSalesData(period = 'all') {
+  try {
+    console.log(`Fetching giftz sales data for period: ${period}`);
+    const response = await fetch(`/api/giftz?period=${period}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching giftz sales data:', error);
+    return { count: 0, sales: [] };
+  }
+}
+
+/**
+ * Fetch trades data
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Trades data
+ */
+export async function fetchTrades(period = 'all') {
+  try {
+    const response = await fetch(`${API_BASE_URL}/trades?period=${period}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching trades:', error);
+    return { ardor_trades: [], polygon_trades: [], count: 0 };
+  }
+}
+
+/**
+ * Fetch burns data
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Burns data
+ */
+export async function fetchBurns(period = 'all') {
+  try {
+    const response = await fetch(`${API_BASE_URL}/burns?period=${period}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching burns:', error);
+    return { burns: [], count: 0 };
+  }
+}
+
+/**
+ * Fetch crafts data
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Crafts data
+ */
+export async function fetchCrafts(period = 'all') {
+  try {
+    const response = await fetch(`${API_BASE_URL}/crafts?period=${period}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching crafts:', error);
+    return { crafts: [], craftings: [], count: 0 };
+  }
+}
+
+/**
+ * Fetch giftz data
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Giftz data
+ */
+export async function fetchGiftz(period = 'all') {
+  try {
+    const response = await fetch(`${API_BASE_URL}/giftz?period=${period}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching giftz data:', error);
+    return { sales: [], count: 0 };
+  }
+}
+
+/**
+ * Fetch users data
+ * @param {string} period - Time period (24h, 7d, 30d, all)
+ * @returns {Promise<Object>} Users data
+ */
+export async function fetchUsers(period = 'all') {
+  try {
+    const response = await fetch(`${API_BASE_URL}/users?period=${period}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return { ardor_users: [], polygon_users: [], count: 0 };
+  }
+}
+
 // ...existing code for other fetch functions...

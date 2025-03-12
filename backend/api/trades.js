@@ -1,38 +1,39 @@
 /**
  * Trades API Routes
- * Provides endpoints related to card trading operations
+ * Provides endpoints related to asset trading
  */
 const express = require('express');
 const router = express.Router();
-const { getTrades } = require('../services/ardor/trades');
-const { filterByPeriod } = require('../utils/filters');
+const ardorService = require('../services/ardorService');
 
-/**
- * @route GET /api/trades
- * @description Get trading operations with optional period filtering
- * @param {string} period - Optional time period filter (24h, 7d, 30d, all)
- */
 router.get('/', async (req, res) => {
   try {
-    const { period = 'all' } = req.query;
+    const period = req.query.period || '30d';
+    const forceRefresh = req.query.refresh === 'true';
+    
     console.log(`Processing trades request with period=${period}`);
     
-    // Get all trading operations
-    const tradesData = await getTrades(period, false); // Don't force refresh by default
+    // Get trades data
+    const tradesData = await ardorService.getTrades(period, forceRefresh);
     
-    if (!tradesData || !tradesData.ardor_trades) {
-      return res.status(404).json({ error: 'No trades data available' });
+    // Always recalculate totalQuantity based on the filtered data
+    let totalQuantity = 0;
+    
+    if (tradesData.ardor_trades && Array.isArray(tradesData.ardor_trades)) {
+      for (const trade of tradesData.ardor_trades) {
+        totalQuantity += Number(trade.quantity || 1);
+      }
     }
     
-    return res.json({
-      ardor_trades: tradesData.ardor_trades,
-      count: tradesData.count || tradesData.ardor_trades.length,
-      timestamp: tradesData.timestamp,
-      period
+    console.log(`Trades response: ${tradesData.ardor_trades?.length || 0} trades with ${totalQuantity} total quantity for period ${period}`);
+    
+    res.json({
+      ...tradesData,
+      totalQuantity
     });
   } catch (error) {
     console.error('Error fetching trades data:', error);
-    return res.status(500).json({ error: 'Failed to fetch trades data' });
+    res.status(500).json({ error: error.message });
   }
 });
 

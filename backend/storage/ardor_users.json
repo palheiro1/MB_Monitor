@@ -220,14 +220,30 @@
       "id": "ARDOR-24CM-EQMW-BKXE-22QR2",
       "address": "ARDOR-24CM-EQMW-BKXE-22QR2",
       "first_seen": "2025-01-23T08:37:43.000Z",
-      "last_seen": "2025-02-28T10:24:18.000Z",
+      "last_seen": "2025-03-12T11:47:40.000Z",
       "trades_count": 114,
       "trades_buy_count": 97,
       "trades_sell_count": 17,
-      "transfers_count": 364,
-      "transfers_send_count": 199,
+      "transfers_count": 366,
+      "transfers_send_count": 201,
       "transfers_receive_count": 165,
       "recent_activities": [
+        {
+          "type": "transfer_send",
+          "timestamp": 227015260,
+          "dateISO": "2025-03-12T11:47:40.000Z",
+          "assetId": "10230963490193589789",
+          "assetName": "GEM",
+          "quantity": "15000000000"
+        },
+        {
+          "type": "transfer_send",
+          "timestamp": 227014936,
+          "dateISO": "2025-03-12T11:42:16.000Z",
+          "assetId": "10230963490193589789",
+          "assetName": "GEM",
+          "quantity": "15000000000"
+        },
         {
           "type": "transfer_receive",
           "timestamp": 225973458,
@@ -291,25 +307,9 @@
           "assetId": "13993107092599641878",
           "assetName": "GIFTZ",
           "quantity": "5"
-        },
-        {
-          "type": "transfer_receive",
-          "timestamp": 222856663,
-          "dateISO": "2025-01-23T08:37:43.000Z",
-          "assetId": "2188455459770682500",
-          "assetName": "MANA",
-          "quantity": "100000000"
-        },
-        {
-          "type": "transfer_receive",
-          "timestamp": 222856663,
-          "dateISO": "2025-01-23T08:37:43.000Z",
-          "assetId": "10230963490193589789",
-          "assetName": "GEM",
-          "quantity": "100000000"
         }
       ],
-      "total_activities": 478,
+      "total_activities": 480,
       "network": "ardor"
     },
     {
@@ -14487,14 +14487,23 @@
       "id": "ARDOR-E84E-5C7Z-FA4R-DM5KM",
       "address": "ARDOR-E84E-5C7Z-FA4R-DM5KM",
       "first_seen": "2024-10-03T09:24:14.000Z",
-      "last_seen": "2025-03-02T15:28:44.000Z",
-      "trades_count": 928,
+      "last_seen": "2025-03-12T05:37:55.000Z",
+      "trades_count": 929,
       "trades_buy_count": 475,
-      "trades_sell_count": 453,
+      "trades_sell_count": 454,
       "transfers_count": 16,
       "transfers_send_count": 5,
       "transfers_receive_count": 11,
       "recent_activities": [
+        {
+          "type": "trade_sell",
+          "timestamp": 226993075,
+          "dateISO": "2025-03-12T05:37:55.000Z",
+          "assetId": "935701767940516955",
+          "assetName": "wETH",
+          "price": "240000000000000",
+          "quantity": "1000000"
+        },
         {
           "type": "trade_sell",
           "timestamp": 226164524,
@@ -14575,18 +14584,9 @@
           "assetName": "wETH",
           "price": "83000000000000",
           "quantity": "1000000"
-        },
-        {
-          "type": "trade_sell",
-          "timestamp": 219225138,
-          "dateISO": "2024-12-12T07:52:18.000Z",
-          "assetId": "935701767940516955",
-          "assetName": "wETH",
-          "price": "82000000000000",
-          "quantity": "1000000"
         }
       ],
-      "total_activities": 944,
+      "total_activities": 945,
       "network": "ardor"
     },
     {
@@ -14731,15 +14731,24 @@
     {
       "id": "ARDOR-YHJE-V87J-ZAHF-G7S8S",
       "address": "ARDOR-YHJE-V87J-ZAHF-G7S8S",
-      "first_seen": "2025-03-02T15:28:44.000Z",
-      "last_seen": "2025-03-02T15:28:44.000Z",
-      "trades_count": 374,
-      "trades_buy_count": 197,
+      "first_seen": "2025-03-12T05:37:55.000Z",
+      "last_seen": "2025-03-12T05:37:55.000Z",
+      "trades_count": 375,
+      "trades_buy_count": 198,
       "trades_sell_count": 177,
       "transfers_count": 4,
       "transfers_send_count": 3,
       "transfers_receive_count": 1,
       "recent_activities": [
+        {
+          "type": "trade_buy",
+          "timestamp": 226993075,
+          "dateISO": "2025-03-12T05:37:55.000Z",
+          "assetId": "935701767940516955",
+          "assetName": "wETH",
+          "price": "240000000000000",
+          "quantity": "1000000"
+        },
         {
           "type": "trade_buy",
           "timestamp": 226164524,
@@ -14820,32 +14829,39 @@
           "assetName": "wETH",
           "price": "82000000000000",
           "quantity": "1000000"
-        },
-        {
-          "type": "trade_buy",
-          "timestamp": 219217440,
-          "dateISO": "2024-12-12T05:44:00.000Z",
-          "assetId": "935701767940516955",
-          "assetName": "wETH",
-          "price": "83000000000000",
-          "quantity": "1000000"
         }
       ],
-      "total_activities": 378,
+      "total_activities": 379,
       "network": "ardor"
     },
     {
       "id": "ARDOR-Q9KZ-74XD-WERK-CV6GB",
       "address": "ARDOR-Q9KZ-74XD-WERK-CV6GB",
-      "first_seen": "2025-03-05T22:52:41.000Z",
-      "last_seen": "2025-03-05T22:52:41.000Z",
+      "first_seen": "2025-03-12T11:48:16.000Z",
+      "last_seen": "2025-03-12T11:48:16.000Z",
       "trades_count": 0,
       "trades_buy_count": 0,
       "trades_sell_count": 0,
-      "transfers_count": 6,
+      "transfers_count": 8,
       "transfers_send_count": 0,
-      "transfers_receive_count": 6,
+      "transfers_receive_count": 8,
       "recent_activities": [
+        {
+          "type": "transfer_receive",
+          "timestamp": 227015296,
+          "dateISO": "2025-03-12T11:48:16.000Z",
+          "assetId": "10230963490193589789",
+          "assetName": "GEM",
+          "quantity": "15000000000"
+        },
+        {
+          "type": "transfer_receive",
+          "timestamp": 227014953,
+          "dateISO": "2025-03-12T11:42:33.000Z",
+          "assetId": "10230963490193589789",
+          "assetName": "GEM",
+          "quantity": "15000000000"
+        },
         {
           "type": "transfer_receive",
           "timestamp": 226450361,
@@ -14895,7 +14911,7 @@
           "quantity": "5000000000"
         }
       ],
-      "total_activities": 6,
+      "total_activities": 8,
       "network": "ardor"
     },
     {
@@ -15771,6 +15787,6 @@
   ],
   "activeUsers": 368,
   "count": 368,
-  "timestamp": "2025-03-11T20:19:36.760Z",
+  "timestamp": "2025-03-12T15:13:28.019Z",
   "cacheVersion": 2
 }

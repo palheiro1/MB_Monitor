@@ -209,12 +209,51 @@ function filterDataByPeriod(data, period, options = {}) {
   const {
     timestampField = 'timestamp',
     dateField = 'date',
-    isoDateField = 'timestampISO'
+    isoDateField = 'timestampISO',
+    debug = false
   } = options;
   
+  // Get the cutoff date/time based on period
   const cutoff = getPeriodCutoff(period);
   
-  return data.filter(item => {
+  console.log(`Filtering ${data.length} items by period ${period}`);
+  console.log(`Period filter details: cutoffDate=${cutoff.date.toISOString()}, cutoffTime=${cutoff.timestamp}, cutoffArdorTimestamp=${cutoff.ardorTimestamp}`);
+  
+  // Log an example of the latest data timestamp if available
+  if (data.length > 0) {
+    // Find the item with the latest timestamp
+    let latestItem = data[0];
+    for (const item of data) {
+      if (item[timestampField] > latestItem[timestampField]) {
+        latestItem = item;
+      }
+    }
+    
+    let latestDateStr = "unknown";
+    if (latestItem[isoDateField]) {
+      latestDateStr = latestItem[isoDateField];
+    } else if (latestItem[dateField]) {
+      latestDateStr = new Date(latestItem[dateField]).toISOString();
+    } else if (latestItem[timestampField]) {
+      // Convert from Ardor timestamp if it's small enough
+      if (latestItem[timestampField] < 1e10) {
+        latestDateStr = new Date(ARDOR_EPOCH + (latestItem[timestampField] * 1000)).toISOString();
+      } else {
+        latestDateStr = new Date(latestItem[timestampField]).toISOString();
+      }
+    }
+    
+    console.log(`Detected latest data timestamp is ${latestDateStr}`);
+  }
+  
+  // For morphs data, do an initial check for quantity fields
+  if (data.length > 0 && data[0].hasOwnProperty('quantity')) {
+    const morphsWithQuantity = data.filter(item => item.quantity > 1).length;
+    console.log(`Before filtering: ${data.length} items, ${morphsWithQuantity} with quantity > 1`);
+  }
+  
+  // Apply the filtering
+  const filteredData = data.filter(item => {
     // Try different date/timestamp fields
     if (item[isoDateField]) {
       return new Date(item[isoDateField]) >= cutoff.date;
@@ -236,6 +275,20 @@ function filterDataByPeriod(data, period, options = {}) {
     // If we can't determine the time, include the item by default
     return true;
   });
+  
+  console.log(`Filtered from ${data.length} to ${filteredData.length} items`);
+  
+  // For morphs data, do a final check for quantity fields after filtering
+  if (filteredData.length > 0 && filteredData[0].hasOwnProperty('quantity')) {
+    const morphsWithQuantity = filteredData.filter(item => item.quantity > 1).length;
+    console.log(`After filtering: ${filteredData.length} items, ${morphsWithQuantity} with quantity > 1`);
+    
+    // Calculate total quantity for fields with quantity property
+    const totalQuantity = filteredData.reduce((sum, item) => sum + (parseInt(item.quantity, 10) || 1), 0);
+    console.log(`Total quantity after filtering: ${totalQuantity}`);
+  }
+  
+  return filteredData;
 }
 
 /**

@@ -203,6 +203,20 @@ async function getCardBurns(forceRefresh = false) {
       result.count = result.burns.length;
     }
     
+    // Calculate total quantity of cards burned
+    if (result && result.burns) {
+      let totalQuantity = 0;
+      
+      for (const burn of result.burns) {
+        // Sum up the quantity from each burn (default to 1 if not specified)
+        totalQuantity += (burn.quantity || 1);
+      }
+      
+      // Add totalQuantity to result
+      result.totalQuantity = totalQuantity;
+      console.log(`Calculated total of ${totalQuantity} cards burned in ${result.burns.length} burn operations`);
+    }
+    
     // Save to JSON file
     writeJSON('ardor_card_burns', result);
     

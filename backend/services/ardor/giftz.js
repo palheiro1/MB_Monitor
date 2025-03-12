@@ -237,7 +237,7 @@ function getPeriodFilter(period) {
 }
 
 /**
- * Get all Giftz token sales
+ * Get all Giftz token sales with quantity calculations
  * @param {boolean} forceRefresh - Whether to force refresh cache
  * @param {string} period - Time period to filter (24h, 7d, 30d, all)
  * @returns {Promise<Object>} Sales data
@@ -246,62 +246,102 @@ async function getGiftzSales(forceRefresh = false, period = 'all') {
   try {
     console.log(`Processing Giftz sales request with period=${period}, forceRefresh=${forceRefresh}`);
     
-    // Fix: Pass the actual function reference to fetch data
-    return await getCachedData(
-      'giftz_sales',
-      fetchGiftzSalesData, // Pass the function reference, not its result
-      {
-        forceRefresh,
-        period
+    // Get Giftz data (either from cache or fresh)
+    let result;
+    
+    if (forceRefresh) {
+      console.log('Forced refresh requested for Giftz sales');
+      result = await fetchGiftzSalesData();
+      
+      // Save to cache
+      writeJSON('giftz_sales', result);
+    } else {
+      // Try reading from cache first
+      result = readJSON('giftz_sales');
+      
+      // If no valid cache, fetch fresh data
+      if (!result || !result.sales || !result.timestamp) {
+        console.log('No valid Giftz sales cache, fetching fresh data');
+        result = await fetchGiftzSalesData();
+        writeJSON('giftz_sales', result);
+      } else {
+        console.log(`Using cached Giftz sales data with ${result.sales?.length || 0} items`);
+        
+        // Check cache age
+        const cacheAge = Date.now() - new Date(result.timestamp).getTime();
+        const cacheMaxAge = 3600000; // 1 hour
+        
+        if (cacheAge > cacheMaxAge) {
+          console.log(`Giftz sales cache is ${Math.round(cacheAge/60000)}min old, refreshing in background`);
+          // Refresh cache in background
+          fetchGiftzSalesData().then(freshData => {
+            writeJSON('giftz_sales', freshData);
+          }).catch(err => {
+            console.error('Background Giftz cache update failed:', err);
+          });
+        }
       }
-    );
-  } catch (error) {
-    console.error('Error fetching Giftz sales:', error.message);
-    throw new Error(`Failed to fetch Giftz sales: ${error.message}`);
-  }
-}
-
-/**
- * Fetch all Giftz token sales data
- * @returns {Promise<Object>} All Giftz sales data
- */
-async function fetchGiftzSalesData() {
-  try {
-    console.log('Fetching Giftz token sales data...');
+    }
     
-    // Implementation of fetching Giftz sales data
-    // ... existing code ...
+    // Normalize timestamps before filtering
+    if (result.sales && result.sales.length > 0) {
+      console.log('Normalizing Giftz timestamps before filtering');
+      result.sales = result.sales.map(sale => {
+        if (!sale.timestampISO && sale.timestamp) {
+          // Convert Ardor timestamp to ISO date
+          const date = ardorTimestampToDate(sale.timestamp);
+          sale.timestampISO = date.toISOString();
+        }
+        return sale;
+      });
+    }
     
-    // For now, return a placeholder if implementation is missing
-    const result = {
-      sales: [],
-      count: 0,
-      salesCount: 0,
-      totalQuantity: 0,
-      timestamp: new Date().toISOString(),
-      period: 'all'
-    };
+    // Calculate total quantity of GIFTZ tokens sold
+    if (result && result.sales) {
+      let totalQuantity = 0;
+      
+      for (const sale of result.sales) {
+        // Sum up the quantity from each sale
+        totalQuantity += (sale.quantity || 1);
+      }
+      
+      // Add totalQuantity to result
+      result.totalQuantity = totalQuantity;
+      console.log(`Calculated total of ${totalQuantity} GIFTZ tokens sold in ${result.sales.length} sales`);
+    }
     
-    // Write to JSON file for debugging
-    writeJSON('giftz_sales', result);
+    // Apply period filtering if needed
+    if (period !== 'all' && result && result.sales) {
+      const { filterByPeriod } = require('../../utils/cacheUtils');
+      
+      const before = result.sales.length;
+      result.sales = filterByPeriod(
+        result.sales, 
+        period, 
+        { timestampField: 'timestamp', dateField: 'timestampISO' }
+      );
+      result.count = result.sales.length;
+      
+      console.log(`Period filtered Giftz sales from ${before} to ${result.count} for period ${period}`);
+    }
     
     return result;
   } catch (error) {
-    console.error('Error fetching Giftz sales data:', error);
+    console.error('Error in getGiftzSales:', error.message);
+    // Return empty result on error
     return { 
       sales: [], 
       count: 0, 
       salesCount: 0,
-      totalQuantity: 0,
       timestamp: new Date().toISOString(),
-      period: 'all',
+      period: period,
       error: error.message
     };
   }
 }
 
 /**
- * Fetch all Giftz sales data (separated for clarity)
+ * Fetch all Giftz token sales data
  * @returns {Promise<Object>} All Giftz sales data
  */
 async function fetchGiftzSalesData() {

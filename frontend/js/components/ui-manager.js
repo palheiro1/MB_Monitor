@@ -148,6 +148,12 @@ export function setupUI() {
     button.addEventListener('click', handlePeriodChange);
   });
   
+  // Update chart title to make it clear we're showing asset quantities
+  const activityChartTitle = document.querySelector('#activity-chart-container h5');
+  if (activityChartTitle) {
+    activityChartTitle.textContent = 'Asset Activity Over Time';
+  }
+  
   // Set up refresh button
   const refreshBtn = getElement('refresh-btn');
   if (refreshBtn) {

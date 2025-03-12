@@ -92,44 +92,189 @@ function createCacheMetadata(period = null, recordCount = 0, customData = {}) {
 }
 
 /**
- * Filter data by time period
+ * Filter data by time period with improved timestamp handling
+ * @param {Array} data - Data array to filter
+ * @param {string} period - Period identifier (24h, 7d, 30d, all)
+ * @param {Object} options - Field names for time data
+ * @returns {Array} Filtered data
  */
 function filterByPeriod(data, period, options = {}) {
-  if (!Array.isArray(data) || period === 'all') {
+  // If no data or period is 'all', return as is
+  if (!data || !Array.isArray(data) || data.length === 0 || period === 'all') {
+    console.log(`No filtering needed: data=${data?.length || 0} items, period=${period}`);
     return data;
   }
   
+  console.log(`Filtering ${data.length} items by period ${period}`);
+  
   const {
-    timestampField = 'timestamp',
-    dateField = 'date',
-    isoDateField = 'timestampISO'
+    timestampField = 'timestamp',  // Numeric timestamp field
+    dateField = 'date',            // ISO date string field
+    isoDateField = 'timestampISO'  // Alternative ISO date string field
   } = options;
+
+  // Get cutoff timestamp based on period
+  const now = new Date();
+  let cutoffDate = new Date(now);
   
-  const cutoff = getPeriodCutoff(period);
+  switch (period) {
+    case '24h':
+      cutoffDate.setHours(now.getHours() - 24);
+      break;
+    case '7d':
+      cutoffDate.setDate(now.getDate() - 7);
+      break;
+    case '30d':
+      cutoffDate.setDate(now.getDate() - 30);
+      break;
+    default:
+      return data; // For 'all' or invalid periods, return all data
+  }
   
-  return data.filter(item => {
-    // Try different date/timestamp fields
-    if (item[isoDateField]) {
-      return new Date(item[isoDateField]) >= cutoff.date;
-    } 
-    
-    if (item[dateField]) {
-      return new Date(item[dateField]) >= cutoff.date;
-    }
-    
-    if (item[timestampField]) {
-      // If it's an Ardor timestamp (seconds since Ardor epoch)
-      if (item[timestampField] < 1e10) {
-        return item[timestampField] >= cutoff.ardorTimestamp;
+  const cutoffTime = cutoffDate.getTime();
+  const ARDOR_EPOCH = new Date("2018-01-01T00:00:00Z").getTime();
+  const cutoffArdorTimestamp = Math.floor((cutoffTime - ARDOR_EPOCH) / 1000);
+
+  console.log(`Period filter details: cutoffDate=${cutoffDate.toISOString()}, cutoffTime=${cutoffTime}, cutoffArdorTimestamp=${cutoffArdorTimestamp}`);
+  
+  // Find latest date in data for debugging
+  let latestDate = null;
+  let latestTimestamp = 0;
+  
+  for (const item of data) {
+    try {
+      if (item[isoDateField]) {
+        const date = new Date(item[isoDateField]);
+        if (!isNaN(date) && (!latestDate || date > latestDate)) {
+          latestDate = date;
+        }
+      } else if (item[dateField]) {
+        const date = new Date(item[dateField]);
+        if (!isNaN(date) && (!latestDate || date > latestDate)) {
+          latestDate = date;
+        }
+      } else if (item[timestampField]) {
+        const ts = Number(item[timestampField]);
+        if (!isNaN(ts)) {
+          if (ts < 1e10) { // Ardor timestamp
+            const date = new Date(ARDOR_EPOCH + (ts * 1000));
+            if (!latestDate || date > latestDate) {
+              latestDate = date;
+              latestTimestamp = ts;
+            }
+          } else { // JS timestamp
+            const date = new Date(ts);
+            if (!latestDate || date > latestDate) {
+              latestDate = date;
+              latestTimestamp = ts;
+            }
+          }
+        }
       }
-      // Otherwise assume it's a JS timestamp (milliseconds)
-      return item[timestampField] >= cutoff.timestamp;
+    } catch (e) {
+      // Skip errors in date detection
+    }
+  }
+
+  if (latestDate) {
+    console.log(`Detected latest data timestamp is ${latestDate.toISOString()}`);
+  }
+
+  // Filter data with improved timestamp handling
+  const filtered = data.filter(item => {
+    if (!item) return false;
+    
+    // Try multiple timestamp formats
+    try {
+      // Try ISO date string fields first
+      if (item[isoDateField]) {
+        const date = new Date(item[isoDateField]);
+        if (!isNaN(date.getTime())) {
+          return date >= cutoffDate;
+        }
+      }
+      
+      if (item[dateField]) {
+        const date = new Date(item[dateField]);
+        if (!isNaN(date.getTime())) {
+          return date >= cutoffDate;
+        }
+      }
+      
+      // Try timestamp field (numeric)
+      if (item[timestampField] !== undefined) {
+        const timestamp = Number(item[timestampField]);
+        if (!isNaN(timestamp)) {
+          // Check if it's Ardor timestamp (seconds since Ardor epoch)
+          if (timestamp < 1e10) {
+            return timestamp >= cutoffArdorTimestamp;
+          } else {
+            // Assume it's JS timestamp (milliseconds since Unix epoch)
+            return timestamp >= cutoffTime;
+          }
+        }
+        
+        // Try parsing timestamp as string date
+        const date = new Date(item[timestampField]);
+        if (!isNaN(date.getTime())) {
+          return date >= cutoffDate;
+        }
+      }
+      
+      // If we have a different date field, try it
+      const dateCandidates = Object.keys(item).filter(
+        key => key.toLowerCase().includes('date') || 
+              key.toLowerCase().includes('time')
+      );
+      
+      for (const key of dateCandidates) {
+        if (key !== timestampField && key !== dateField && key !== isoDateField) {
+          if (typeof item[key] === 'string') {
+            try {
+              const date = new Date(item[key]);
+              if (!isNaN(date.getTime())) {
+                return date >= cutoffDate;
+              }
+            } catch (e) {
+              // Skip this field on error
+            }
+          } else if (typeof item[key] === 'number') {
+            const ts = item[key];
+            if (ts < 1e10) { // Ardor timestamp
+              return ts >= cutoffArdorTimestamp;
+            } else { // JS timestamp
+              return ts >= cutoffTime;
+            }
+          }
+        }
+      }
+      
+    } catch (e) {
+      console.warn(`Error filtering item:`, e);
     }
     
-    // If we can't determine the time, include by default
+    // If we can't determine the date but item has some date fields, log it
+    const timeKeys = Object.keys(item).filter(
+      key => key.toLowerCase().includes('date') || 
+            key.toLowerCase().includes('time')
+    );
+    
+    if (timeKeys.length > 0) {
+      const timeValues = {};
+      timeKeys.forEach(key => timeValues[key] = item[key]);
+      console.debug(`Could not filter item with time fields:`, timeValues);
+    }
+    
+    // Default to include if we can't determine (avoid data loss)
     return true;
   });
+
+  console.log(`Filtered from ${data.length} to ${filtered.length} items`);
+  return filtered;
 }
+
+// Create an alias for filterByPeriod to maintain backward compatibility
+const filterDataByPeriod = filterByPeriod;
 
 module.exports = {
   CACHE_PREFIXES,
@@ -137,5 +282,6 @@ module.exports = {
   normalizeTimestamp,
   getPeriodCutoff,
   createCacheMetadata,
-  filterByPeriod
+  filterByPeriod,
+  filterDataByPeriod
 };

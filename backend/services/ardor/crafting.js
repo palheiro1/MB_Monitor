@@ -165,7 +165,7 @@ async function getAllAssetTransfers(assetId) {
  * @param {boolean} forceRefresh - Whether to force a refresh of the cache
  * @returns {Promise<Object>} - Craft operations data
  */
-async function getCraftings(forceRefresh = false) {
+async function getCraftings(forceRefresh = false, period = 'all') {
   try {
     logger.info(`Starting getCraftings with forceRefresh=${forceRefresh}`);
     
@@ -296,6 +296,21 @@ async function getCraftings(forceRefresh = false) {
     // Final filter to ensure no GEM tokens are included
     result.craftings = result.craftings.filter(craft => craft.assetId !== GEM_ASSET_ID);
     result.count = result.craftings.length;
+    
+    // Calculate total quantity of cards crafted
+    if (result && result.craftings) {
+      let totalQuantity = 0;
+      
+      for (const craft of result.craftings) {
+        // Each crafting typically produces 1 card, but some may produce more
+        // Use the outputQuantity if available, otherwise default to 1
+        totalQuantity += (craft.outputQuantity || 1);
+      }
+      
+      // Add totalQuantity to result
+      result.totalQuantity = totalQuantity;
+      console.log(`Calculated total of ${totalQuantity} cards crafted in ${result.craftings.length} craft operations`);
+    }
     
     logger.info(`Found ${result.count} craft operations in total`);
     

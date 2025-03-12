@@ -1,44 +1,39 @@
 /**
  * Burns API Routes
- * Provides endpoints related to card burning operations
+ * Provides endpoints related to card burns
  */
 const express = require('express');
 const router = express.Router();
-const { getCardBurns } = require('../services/ardor/burns');
-const { filterByPeriod } = require('../utils/filters');
+const ardorService = require('../services/ardorService');
 
-/**
- * @route GET /api/burns
- * @description Get card burning operations with optional period filtering
- * @param {string} period - Optional time period filter (24h, 7d, 30d, all)
- */
 router.get('/', async (req, res) => {
   try {
-    const { period = 'all' } = req.query;
+    const period = req.query.period || '30d';
+    const forceRefresh = req.query.refresh === 'true';
+    
     console.log(`Processing burns request with period=${period}`);
     
-    // Get all burning operations
-    const burnsData = await getCardBurns(false); // Don't force refresh by default
+    // Get burns data
+    const burnsData = await ardorService.getCardBurns(forceRefresh, period);
     
-    if (!burnsData || !burnsData.burns) {
-      return res.status(404).json({ error: 'No burns data available' });
+    // Always recalculate totalQuantity based on the filtered data
+    let totalQuantity = 0;
+    
+    if (burnsData.burns && Array.isArray(burnsData.burns)) {
+      for (const burn of burnsData.burns) {
+        totalQuantity += Number(burn.quantity || burn.quantityQNT || burn.quantityFormatted || 1);
+      }
     }
     
-    // Apply period filtering if needed
-    let filteredBurns = burnsData.burns;
-    if (period !== 'all') {
-      filteredBurns = filterByPeriod(burnsData.burns, period, 'timestamp');
-    }
+    console.log(`Burns response: ${burnsData.burns?.length || 0} burns with ${totalQuantity} total quantity for period ${period}`);
     
-    return res.json({
-      burns: filteredBurns,
-      count: filteredBurns.length,
-      timestamp: burnsData.timestamp,
-      period
+    res.json({
+      ...burnsData,
+      totalQuantity
     });
   } catch (error) {
     console.error('Error fetching burns data:', error);
-    return res.status(500).json({ error: 'Failed to fetch burns data' });
+    res.status(500).json({ error: error.message });
   }
 });
 

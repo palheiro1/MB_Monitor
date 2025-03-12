@@ -19,18 +19,42 @@ router.get('/', async (req, res) => {
     
     console.log(`Processing users request with period=${period}, forceRefresh=${forceRefresh}`);
     
-    // Get active users - now with unified caching approach
-    const usersData = await ardorService.getActiveUsers(period, forceRefresh);
+    // Get active users
+    const usersData = await ardorService.getActiveUsers(forceRefresh);
     
     if (!usersData) {
       return res.status(404).json({ error: 'No users data available' });
     }
     
-    // Return the data (already filtered by period in the caching layer)
+    // Apply period filtering if needed
+    let filteredData = usersData;
+    if (period !== 'all' && usersData.ardor_users) {
+      // Import the utility for filtering
+      const { filterByPeriod } = require('../utils/cacheUtils');
+      
+      // Filter users by last_seen date
+      const filteredUsers = filterByPeriod(
+        usersData.ardor_users,
+        period,
+        { dateField: 'last_seen' }
+      );
+      
+      // Create a new object with filtered users
+      filteredData = {
+        ...usersData,
+        ardor_users: filteredUsers,
+        count: filteredUsers.length
+      };
+    }
+    
+    // Log what we're sending back for debugging
+    console.log(`Returning users data with count: ${filteredData.count || 0} for period: ${period}`);
+    
+    // Return the filtered data
     return res.json({
-      ardor_users: usersData.ardor_users || [],
-      count: usersData.count || 0,
-      timestamp: usersData.timestamp || new Date().toISOString(),
+      ardor_users: filteredData.ardor_users || [],
+      count: filteredData.count || 0,
+      timestamp: filteredData.timestamp || new Date().toISOString(),
       period
     });
   } catch (error) {

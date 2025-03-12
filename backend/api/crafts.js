@@ -1,16 +1,11 @@
 /**
  * Crafts API Routes
- * Provides endpoints related to crafting operations
+ * Provides endpoints related to card crafting operations
  */
 const express = require('express');
 const router = express.Router();
 const ardorService = require('../services/ardorService');
 
-/**
- * @route GET /api/crafts
- * @description Get crafting operations with optional period filtering
- * @param {string} period - Optional time period filter (24h, 7d, 30d, all)
- */
 router.get('/', async (req, res) => {
   try {
     const period = req.query.period || '30d';
@@ -18,35 +13,34 @@ router.get('/', async (req, res) => {
     
     console.log(`Processing crafts request with period=${period}, forceRefresh=${forceRefresh}`);
     
-    // Get crafting operations
-    const craftsData = await ardorService.getCraftings(forceRefresh, period);
+    // Get craftings data with proper period filtering
+    const craftData = await ardorService.getCraftings(forceRefresh, period);
     
-    if (!craftsData) {
-      return res.status(404).json({ error: 'No crafting data available' });
+    // Always recalculate totalQuantity based on the filtered data
+    let totalQuantity = 0;
+    
+    if (craftData.craftings && Array.isArray(craftData.craftings)) {
+      for (const craft of craftData.craftings) {
+        totalQuantity += Number(craft.outputQuantity || craft.cardsUsed || 1);
+      }
     }
     
-    // Log the data structure to debug
-    console.log(`Crafts API response structure: ${JSON.stringify({
-      count: craftsData.count || 0,
-      hasCrafts: Array.isArray(craftsData.crafts),
-      hasCraftings: Array.isArray(craftsData.craftings),
-      craftCount: (craftsData.crafts || []).length,
-      craftingsCount: (craftsData.craftings || []).length
-    })}`);
+    console.log(`Crafts response: ${craftData.craftings?.length || 0} crafts with ${totalQuantity} total quantity for period ${period}`);
     
-    // Ensure both crafts and craftings properties are available for frontend compatibility
-    const response = {
-      crafts: craftsData.craftings || craftsData.crafts || [],
-      craftings: craftsData.craftings || craftsData.crafts || [],
-      count: craftsData.count || 0,
-      timestamp: new Date().toISOString(),
-      period
-    };
+    // Ensure both 'crafts' and 'craftings' fields exist
+    if (craftData.craftings && !craftData.crafts) {
+      craftData.crafts = craftData.craftings;
+    } else if (craftData.crafts && !craftData.craftings) {
+      craftData.craftings = craftData.crafts;
+    }
     
-    return res.json(response);
+    res.json({
+      ...craftData,
+      totalQuantity
+    });
   } catch (error) {
-    console.error('Error fetching crafting data:', error);
-    return res.status(500).json({ error: 'Failed to fetch crafting data' });
+    console.error('Error fetching craft data:', error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 

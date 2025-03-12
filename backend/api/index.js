@@ -19,6 +19,7 @@ const usersRouter = require('./users');
 const morphsRouter = require('./morphs');
 const giftzRouter = require('./giftz'); // Add this line
 const activityRouter = require('./activity');
+const diagnosticRouter = require('./diagnostic'); // Import the diagnostic router
 
 // Register routes
 router.use('/ardor', ardorRoutes);
@@ -31,6 +32,9 @@ router.use('/users', usersRouter);
 router.use('/morphs', morphsRouter);
 router.use('/giftz', giftzRouter); // Add this line
 router.use('/activity', activityRouter);
+
+// Add diagnostic routes
+router.use('/diagnostic', diagnosticRouter); // Add diagnostic endpoint
 
 // Add a simple ping test endpoint
 router.get('/ping', (req, res) => {

@@ -129,88 +129,93 @@ async function getAssetInfo(assetId) {
  * @returns {Promise<Array>} Asset transfers
  */
 async function fetchMorphTransactions(assetIds, morphAccount) {
-  // Create a more efficient batching system
-  const BATCH_SIZE = 5;
-  const uniqueAssetIds = [...new Set(assetIds)]; // Remove duplicates
+  // Create a more efficient batching system 
+  const BATCH_SIZE = 10; // Increased batch size
+  const MAX_ASSETS_TO_CHECK = 100; // Limit number of assets to check
+  const uniqueAssetIds = [...new Set(assetIds)].slice(0, MAX_ASSETS_TO_CHECK); // Limit assets
   const transfers = [];
   const processedAssetIds = new Set();
   
-  console.log(`Processing ${uniqueAssetIds.length} unique assets for morph transactions...`);
+  console.log(`Processing ${uniqueAssetIds.length} unique assets for morph transactions (limited from ${assetIds.length})...`);
   
   // Process assets in batches
   for (let i = 0; i < uniqueAssetIds.length; i += BATCH_SIZE) {
     const batch = uniqueAssetIds.slice(i, i + BATCH_SIZE);
-    console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(uniqueAssetIds.length/BATCH_SIZE)}, assets: ${batch.slice(0, 5).join(', ')}...`);
+    console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(uniqueAssetIds.length/BATCH_SIZE)}`);
     
     // Process each asset in the batch with proper caching
     const batchPromises = batch.map(async (assetId) => {
       // Skip if already processed
       if (processedAssetIds.has(assetId)) {
-        console.log(`Skipping already processed asset ${assetId}`);
         return [];
       }
       
-      // Generate cache key for this asset's transfers
+      // Generate cache key for this asset's transfers - ONLY use memory cache, not file cache
       const cacheKey = `asset_transfers_${assetId}`;
       
       // Check memory cache first (fast)
       const cachedTransfers = cacheService.transaction.get(cacheKey);
       if (cachedTransfers) {
-        console.log(`Using cached transfers for asset ${assetId} (${cachedTransfers.length} transfers)`);
         processedAssetIds.add(assetId);
         return cachedTransfers;
-      }
-      
-      // Try file cache next (slower but persistent)
-      const fileCacheKey = `ardor_asset_transfers_${assetId}`;
-      const fileCache = cacheService.file.read(fileCacheKey);
-      if (fileCache && fileCache.transfers) {
-        console.log(`Using file cache for asset ${assetId} (${fileCache.transfers.length} transfers)`);
-        // Store in memory cache for faster access next time
-        cacheService.transaction.set(cacheKey, fileCache.transfers, 3600); // 1 hour TTL
-        processedAssetIds.add(assetId);
-        return fileCache.transfers;
       }
 
       try {
         // Fetch transfers for this asset
-        console.log(`Fetching transfers for asset ${assetId}...`);
         const response = await makeRetryableRequest({
           url: ARDOR_API_URL,
           params: {
             requestType: 'getAssetTransfers',
             asset: assetId,
             firstIndex: 0,
-            lastIndex: 100
+            lastIndex: 500  // Increased from 100 to 500 to get more historical data
           },
-          cacheTTL: 3600 // 1 hour
+          cacheTTL: 3600
         });
         
         if (!response.data || !response.data.transfers) {
-          console.log(`No transfers found for asset ${assetId}`);
           processedAssetIds.add(assetId);
           return [];
         }
         
-        const assetTransfers = response.data.transfers.filter(transfer => 
-          transfer.recipientRS === morphAccount
-        );
+        // Only filter by morph account if one was provided
+        let assetTransfers = response.data.transfers;
+        if (morphAccount) {
+          assetTransfers = assetTransfers.filter(transfer => 
+            transfer.recipientRS === morphAccount
+          );
+        }
         
-        console.log(`Found ${assetTransfers.length} potential outgoing transfers for asset ${assetId}`);
-        
-        // Cache the result in both memory and file
-        cacheService.transaction.set(cacheKey, assetTransfers, 3600);
-        cacheService.file.write(fileCacheKey, { 
-          transfers: assetTransfers,
-          timestamp: new Date().toISOString(),
-          assetId
-        });
+        if (assetTransfers.length > 0) {
+          console.log(`Found ${assetTransfers.length} transfers for asset ${assetId}`);
+          
+          // For each transfer, immediately get and attach transaction data
+          for (const transfer of assetTransfers) {
+            try {
+              // Use assetTransferFullHash to retrieve the full transaction
+              if (transfer.assetTransferFullHash) {
+                const txData = await getTransactionWithCache(transfer.assetTransferFullHash);
+                if (txData) {
+                  // Attach the full transaction data to the transfer object
+                  transfer.transactionData = txData;
+                  // Save the asset ID explicitly for easy access
+                  transfer.asset = assetId;
+                }
+              }
+            } catch (txError) {
+              console.error(`Error fetching transaction data for transfer: ${txError.message}`);
+            }
+          }
+          
+          // Cache in memory only - REMOVED individual file caching
+          cacheService.transaction.set(cacheKey, assetTransfers, 3600);
+        }
         
         processedAssetIds.add(assetId);
         return assetTransfers;
       } catch (error) {
         console.error(`Error fetching transfers for asset ${assetId}:`, error.message);
-        processedAssetIds.add(assetId); // Mark as processed to avoid retries
+        processedAssetIds.add(assetId);
         return [];
       }
     });
@@ -235,6 +240,11 @@ async function processMorphData(transfers) {
   let messagesFoundCount = 0;
   let morphMessagesCount = 0;
   
+  // Add tracking for total quantity of cards morphed
+  let totalCardsFound = 0;
+  let operationsWithQuantity = 0;
+  let operationsWithoutQuantity = 0;
+  
   if (!transfers || transfers.length === 0) {
     console.log('No transfers to process for morphing operations');
     return morphOperations;
@@ -243,6 +253,7 @@ async function processMorphData(transfers) {
   // Log sample transfer data to understand its structure better
   if (transfers.length > 0) {
     console.log(`Sample transfer object keys: ${Object.keys(transfers[0]).join(', ')}`);
+    console.log(`Sample transfer data (first item): ${JSON.stringify(transfers[0]).substring(0, 200)}...`);
   }
   
   // Add a counter for potential morph messages found
@@ -264,21 +275,23 @@ async function processMorphData(transfers) {
       
       processedCount++;
       
-      // Get the full transaction using our cache function
-      const transactionData = await getTransactionWithCache(hashId);
+      // Debug log to see what's in the transfer
+      if (processedCount === 1) {
+        console.log(`DEBUG - TRANSFER EXAMPLE: ${JSON.stringify(transfer).substring(0, 300)}`);
+      }
+      
+      // Get transaction data - either from the attached data or by fetching it
+      let transactionData = transfer.transactionData;
       if (!transactionData) {
+        transactionData = await getTransactionWithCache(hashId);
+      }
+      
+      if (!transactionData) {
+        console.log(`Could not get transaction data for ${hashId}`);
         continue;
       }
       
-      // Log transaction keys only once
-      if (processedCount === 1) {
-        console.log(`Sample transaction object keys: ${Object.keys(transactionData).join(', ')}`);
-        if (transactionData.attachment) {
-          console.log(`Sample attachment keys: ${Object.keys(transactionData.attachment).join(', ')}`);
-        }
-      }
-      
-      // Check for attachment and message
+      // Check for attachment with message
       if (!transactionData.attachment || !transactionData.attachment.message) {
         continue;
       }
@@ -288,97 +301,147 @@ async function processMorphData(transfers) {
       // Get the raw message
       const rawMessage = transactionData.attachment.message;
       
-      // Log a sample of raw messages (up to 10) to help with debugging
-      if (messagesFoundCount <= 10) {
-        console.log(`Sample message ${messagesFoundCount}: ${rawMessage}`);
-      }
-      
       try {
         // Pre-process the message
         const cleanedMessage = preprocessJsonMessage(rawMessage);
+        
+        // Debug log for early messages
+        if (messagesFoundCount <= 5) {
+          console.log(`Sample message #${messagesFoundCount}: ${cleanedMessage}`);
+        }
         
         // Try to parse the message as JSON
         let messageData;
         try {
           messageData = JSON.parse(cleanedMessage);
         } catch (jsonError) {
-          // Check if it contains cardmorph keyword before giving up
+          // Check if it contains cardmorph keyword
           if (cleanedMessage.includes('cardmorph')) {
             potentialMorphMsgs++;
             console.log(`Found potential morph message (not valid JSON): ${cleanedMessage}`);
             messageData = { message: "cardmorph" };
           } else {
-            throw jsonError;
+            continue;
           }
         }
         
-        // Check if this is a morph operation through various patterns
+        // Detect morph operations by examining message content
         let isMorphOperation = false;
         
-        // Direct pattern: {"submittedBy":"MBOmno","withdrawIndex":0,"message":"cardmorph"}
-        if (messageData && messageData.message === "cardmorph") {
-          isMorphOperation = true;
-          console.log(`Found morph operation with direct pattern: ${JSON.stringify(messageData)}`);
-        }
-        // Alternative pattern: might have a contract field
-        else if (messageData && messageData.contract === "cardmorph") {
-          isMorphOperation = true;
-          console.log(`Found morph operation with contract pattern: ${JSON.stringify(messageData)}`);
-        }
-        // Check raw message string as fallback
-        else if (cleanedMessage.includes('cardmorph') && !cleanedMessage.includes('CardCraftGEM') && !cleanedMessage.includes('MBJackpot')) {
-          potentialMorphMsgs++;
-          console.log(`Found raw message containing cardmorph: ${cleanedMessage}`);
-          messageData = { message: "cardmorph" };
-          isMorphOperation = true;
+        // Check all the patterns that indicate a morph operation
+        if (messageData) {
+          // Pattern 1: Direct message field
+          if (messageData.message === "cardmorph") {
+            isMorphOperation = true;
+          }
+          // Pattern 2: Contract field
+          else if (messageData.contract === "cardmorph") {
+            isMorphOperation = true;
+          }
+          // Pattern 3: Standard morph operation format
+          else if (typeof messageData.submittedBy === 'string' && 
+                   (typeof messageData.withdrawIndex === 'number' || 
+                    typeof messageData.withdrawIndex === 'string')) {
+            isMorphOperation = true;
+          }
+          // Pattern 4: Raw message contains cardmorph keyword
+          else if (cleanedMessage.includes('cardmorph') && 
+                  !cleanedMessage.includes('CardCraftGEM') && 
+                  !cleanedMessage.includes('MBJackpot')) {
+            isMorphOperation = true;
+          }
         }
         
         if (isMorphOperation) {
           morphMessagesCount++;
           
-          // Get asset info for the card
-          const assetInfo = await getAssetInfo(transfer.assetId);
-          if (!assetInfo) {
+          // Critical: Get the asset ID from the correct location
+          // First check the transaction attachment
+          const assetId = transactionData.attachment.asset || 
+                         transfer.asset ||  // From our added asset property
+                         transfer.assetId;  // Fallback
+          
+          if (!assetId) {
+            console.log(`Missing asset ID in morph transaction ${hashId}`);
             continue;
           }
           
-          // Get recipient information (the user who received the morphed card)
+          // Get asset info for the card
+          const assetInfo = await getAssetInfo(assetId);
+          if (!assetInfo) {
+            console.log(`Failed to get asset info for asset ID ${assetId}, skipping morph operation`);
+            continue;
+          }
+          
+          // Get recipient information
           const recipientRS = transfer.recipientRS || transactionData.recipientRS;
           
-          // Construct morph operation record
+          // Extract quantity information with priority order
+          let morphQuantity = 1; // Default to 1 if nothing else found
+          
+          // First priority: transaction attachment quantityQNT
+          if (transactionData.attachment && transactionData.attachment.quantityQNT) {
+            morphQuantity = parseInt(transactionData.attachment.quantityQNT, 10);
+            console.log(`Found quantity in transaction attachment: ${morphQuantity}`);
+          } 
+          // Second priority: transfer quantityQNT
+          else if (transfer.quantityQNT) {
+            morphQuantity = parseInt(transfer.quantityQNT, 10);
+          }
+          
+          // Validate the quantity
+          if (isNaN(morphQuantity) || morphQuantity < 1) {
+            morphQuantity = 1;
+          }
+          
+          // Track statistics and construct the morph operation
+          totalCardsFound += morphQuantity;
+          if (morphQuantity > 1) {
+            operationsWithQuantity++;
+          } else {
+            operationsWithoutQuantity++;
+          }
+          
           const morphOp = {
             id: hashId,
             timestamp: parseInt(transfer.timestamp),
             timestampISO: ardorTimestampToDate(parseInt(transfer.timestamp)),
-            morpher: recipientRS,  // The recipient of the transaction is the morpher
+            morpher: recipientRS,
             from_card: assetInfo.cardName,
-            from_asset_id: transfer.assetId,
-            to_card: assetInfo.cardName, // Same card ID but morphed version
-            to_asset_id: transfer.assetId,
+            from_asset_id: assetId,
+            to_card: assetInfo.cardName,
+            to_asset_id: assetId,
             message: messageData,
             submittedBy: messageData.submittedBy || "unknown",
             withdrawIndex: messageData.withdrawIndex || 0,
-            direction: "outgoing"
+            direction: "outgoing",
+            quantity: morphQuantity
           };
           
           morphOperations.push(morphOp);
+          console.log(`Added morph operation: ${hashId} for ${assetInfo.cardName} (quantity: ${morphQuantity})`);
         }
       } catch (error) {
-        // Log more details about the message that failed to parse
-        console.error(`Error parsing message for transaction ${hashId}:`, error.message);
-        console.error(`Raw message excerpt: "${rawMessage.substring(0, 100)}..."`);
+        console.error(`Error processing message for ${hashId}:`, error.message);
       }
     } catch (error) {
       console.error(`Error processing transfer:`, error.message);
     }
     
-    // Add progress logging
-    if (processedCount % 500 === 0) {
-      console.log(`Processed ${processedCount}/${transfers.length} transfers, found ${morphMessagesCount} morph operations so far...`);
-      // Log cache efficiency stats
-      console.log(`Cache status: ${transactionCache.size} transactions cached`);
+    // Progress logging
+    if (processedCount % 100 === 0) {
+      console.log(`Processed ${processedCount}/${transfers.length} transfers, found ${morphOperations.length} morph operations so far...`);
     }
   }
+  
+  // Add summary logging of quantities
+  const totalQuantity = morphOperations.reduce((sum, op) => sum + (op.quantity || 1), 0);
+  console.log(`MORPH PROCESSING COMPLETE:`);
+  console.log(`- Found ${morphOperations.length} morph operations`);
+  console.log(`- Total cards morphed: ${totalQuantity}`);
+  console.log(`- Operations with quantity > 1: ${operationsWithQuantity}`);
+  console.log(`- Operations with quantity = 1: ${operationsWithoutQuantity}`);
+  console.log(`- Average cards per operation: ${(totalQuantity / morphOperations.length).toFixed(2)}`);
   
   console.log(`Processing complete: ${processedCount} transfers, found ${messagesFoundCount} messages, ` +
               `identified ${morphMessagesCount} morph operations`);
@@ -403,52 +466,30 @@ function preprocessJsonMessage(message) {
   
   // Remove BOM if present
   if (cleaned.charCodeAt(0) === 0xFEFF) {
-    cleaned = cleaned.slice(1);
+    cleaned = cleaned.substring(1);
   }
   
-  // Check for common issues with message formatting
-  
-  // 1. Handle messages that have HTML entities
-  cleaned = cleaned.replace(/&quot;/g, '"');
-  
-  // 2. If message starts with quotes but isn't properly JSON formatted, try to fix
-  if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-    try {
-      // This might be a double-encoded JSON string
-      cleaned = JSON.parse(cleaned);
-    } catch (e) {
-      // Failed to parse as double-encoded JSON, leave as is
+  // Handle cases where message might have incorrect JSON formatting
+  if (cleaned.includes('cardmorph') && !cleaned.startsWith('{')) {
+    // Attempt to extract JSON-like content
+    const jsonStartIdx = cleaned.indexOf('{');
+    if (jsonStartIdx >= 0) {
+      cleaned = cleaned.substring(jsonStartIdx);
+    } else {
+      // If no JSON structure, create a simple one
+      cleaned = '{"message":"cardmorph"}';
     }
-  }
-  
-  // 3. Try to fix common JSON formatting issues
-  if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
-    // Look for first '{' character
-    const firstBrace = cleaned.indexOf('{');
-    if (firstBrace > 0) {
-      cleaned = cleaned.substring(firstBrace);
-    }
-  }
-  
-  // 4. Fix trailing characters after valid JSON (which can happen in prunable messages)
-  const lastBrace = cleaned.lastIndexOf('}');
-  if (lastBrace > 0 && lastBrace < cleaned.length - 1) {
-    cleaned = cleaned.substring(0, lastBrace + 1);
-  }
-  
-  // 5. Try to identify the exact pattern for morph operations
-  if (cleaned.includes('submittedBy') && cleaned.includes('cardmorph')) {
-    console.log('Found message with submittedBy and cardmorph keywords:', cleaned);
-    // This is likely a morph operation based on the specified format
   }
   
   return cleaned;
 }
 
+// Properly export all required functions
 module.exports = {
   fetchMorphTransactions,
   processMorphData,
   getAssetInfo,
   ardorTimestampToDate,
-  getTransactionWithCache // Export the new cached function
+  getTransactionWithCache,
+  preprocessJsonMessage
 };

@@ -244,7 +244,7 @@ export async function updateActivityChartForPeriod(period) {
     const periodDisplay = getPeriodDisplay(period);
     activityChart.options.plugins.title = {
       display: true,
-      text: `Activity Trends (${periodDisplay})`,
+      text: `Assets Activity (${periodDisplay})`,
       font: {
         size: 16
       }
@@ -282,21 +282,34 @@ export async function updateActivityChartForPeriod(period) {
     
     // Update each dataset
     const datasets = [
-      { key: 'trades', index: 0 },
-      { key: 'burns', index: 1 },
-      { key: 'crafts', index: 2 },
-      { key: 'morphs', index: 3 },
-      { key: 'giftz', index: 4 }
+      { key: 'trades', index: 0, label: 'Assets Traded' },
+      { key: 'burns', index: 1, label: 'Assets Burned' },
+      { key: 'crafts', index: 2, label: 'Assets Crafted' },
+      { key: 'morphs', index: 3, label: 'Assets Morphed' },
+      { key: 'giftz', index: 4, label: 'Giftz Assets Sold' }
     ];
     
-    datasets.forEach(({ key, index }) => {
+    datasets.forEach(({ key, index, label }) => {
       if (Array.isArray(activityData[key])) {
         activityChart.data.datasets[index].data = activityData[key];
+        // Update dataset label to reflect asset quantities
+        activityChart.data.datasets[index].label = label;
       } else {
         console.warn(`Missing data for ${key}, using zeros`);
         activityChart.data.datasets[index].data = Array(activityData.labels.length).fill(0);
       }
     });
+    
+    // Update tooltip callbacks to be quantity-aware
+    activityChart.options.plugins.tooltip.callbacks.title = function(tooltipItems) {
+      return tooltipItems[0].label;
+    };
+    
+    activityChart.options.plugins.tooltip.callbacks.label = function(context) {
+      const label = context.dataset.label || '';
+      const value = context.parsed.y;
+      return `${label}: ${value.toLocaleString()} ${value === 1 ? 'asset' : 'assets'}`;
+    };
     
     // Update the chart with animation
     activityChart.update();

@@ -286,16 +286,25 @@ async function getCraftings(forceRefresh = false, period = 'all') {
     
     // Filter if period is not 'all'
     if (period !== 'all') {
+      const filterConfig = { 
+        timestampField: 'timestamp', 
+        dateField: 'craftDate' // Use craftDate consistently
+      };
+      const filteredCrafts = filterByPeriod(
+        resultWithMetadata.craftings, 
+        period, 
+        filterConfig
+      );
+      
+      // Calculate total quantity for filtered crafts
+      const totalQuantity = filteredCrafts.reduce((sum, craft) => sum + (parseInt(craft.quantity, 10) || 1), 0);
+      
       const filteredData = { 
         ...resultWithMetadata,
-        craftings: filterByPeriod(
-          resultWithMetadata.craftings, 
-          period, 
-          { timestampField: 'timestamp', dateField: 'craftDate' }
-        )
+        craftings: filteredCrafts,
+        count: filteredCrafts.length,
+        totalQuantity: totalQuantity
       };
-      
-      filteredData.count = filteredData.craftings.length;
       return filteredData;
     }
     
@@ -331,7 +340,7 @@ async function getCraftings(forceRefresh = false, period = 'all') {
 }
 
 /**
- * Get morphings with improved caching
+ * Get morphings with improved period filtering
  * @param {boolean} forceRefresh - Whether to force a refresh of the cache
  * @param {string} period - Time period filter (24h, 7d, 30d, all)
  * @returns {Promise<Object>} Morphings data
@@ -344,20 +353,32 @@ async function getMorphings(forceRefresh = false, period = 'all') {
     if (!forceRefresh) {
       const cachedData = cacheService.file.read(cacheKey);
       if (cachedData && cacheService.isCacheValid(cachedData)) {
-        console.log('Using cached morphings data and applying period filter');
-        // Filter the cached data by period
+        console.log(`Using cached morphings data and applying period filter: ${period}`);
+        
+        // Get morphs data from either field name
+        const morphsData = cachedData.morphs || cachedData.morphings || [];
+        
+        // Filter by period using consistent date field
+        const filteredMorphs = filterByPeriod(
+          morphsData, 
+          period, 
+          { timestampField: 'timestamp', dateField: 'timestampISO' }
+        );
+        
+        // Calculate total quantity for filtered morphs
+        const totalQuantity = filteredMorphs.reduce((sum, morph) => sum + (parseInt(morph.quantity, 10) || 1), 0);
+        console.log(`Calculated filtered morphs quantity: ${totalQuantity} cards from ${filteredMorphs.length} operations`);
+        
+        // Return filtered data with consistent field names and updated totalQuantity
         const filteredData = { 
           ...cachedData,
-          // Handle both "morphings" and "morphs" fields for backward compatibility
-          morphings: filterByPeriod(
-            cachedData.morphings || cachedData.morphs || [], 
-            period, 
-            { timestampField: 'timestamp', dateField: 'morphDate' }
-          )
+          morphs: filteredMorphs,
+          morphings: filteredMorphs, // Add both field names for compatibility
+          count: filteredMorphs.length,
+          totalQuantity: totalQuantity // Make sure totalQuantity is properly updated
         };
         
-        // Update the count to match filtered data
-        filteredData.count = filteredData.morphings.length;
+        console.log(`Filtered morphs from ${morphsData.length} to ${filteredMorphs.length} operations for period ${period}`);
         return filteredData;
       }
     }
@@ -369,11 +390,18 @@ async function getMorphings(forceRefresh = false, period = 'all') {
     // The original function may use "morphs" instead of "morphings"
     const morphingsData = result.morphings || result.morphs || [];
     
-    // Cache the results with metadata - ensure consistent naming
+    // Calculate total quantity - make sure it's calculated if not present in original result
+    const totalQuantity = result.totalQuantity || 
+                          morphingsData.reduce((sum, morph) => sum + (parseInt(morph.quantity, 10) || 1), 0);
+    
+    console.log(`Fresh morphings data: ${morphingsData.length} operations with total quantity of ${totalQuantity} cards`);
+    
+    // Cache the results with metadata - ensure consistent naming and totalQuantity
     const resultWithMetadata = {
       ...result,
-      // If original result uses "morphs", map it to "morphings" for consistency
       morphings: morphingsData,
+      morphs: morphingsData,
+      totalQuantity: totalQuantity,
       ...createCacheMetadata('all', morphingsData.length)
     };
     
@@ -381,16 +409,25 @@ async function getMorphings(forceRefresh = false, period = 'all') {
     
     // Filter if period is not 'all'
     if (period !== 'all') {
+      // Filter by period using timestampISO consistently
+      const filteredMorphs = filterByPeriod(
+        morphingsData, 
+        period, 
+        { timestampField: 'timestamp', dateField: 'timestampISO' }
+      );
+      
+      // Recalculate total quantity for filtered data
+      const filteredQuantity = filteredMorphs.reduce((sum, morph) => sum + (parseInt(morph.quantity, 10) || 1), 0);
+      
       const filteredData = { 
         ...resultWithMetadata,
-        morphings: filterByPeriod(
-          morphingsData, 
-          period, 
-          { timestampField: 'timestamp', dateField: 'morphDate' }
-        )
+        morphs: filteredMorphs,
+        morphings: filteredMorphs,
+        count: filteredMorphs.length,
+        totalQuantity: filteredQuantity // Update totalQuantity for the filtered period
       };
       
-      filteredData.count = filteredData.morphings.length;
+      console.log(`Period filtered from ${morphingsData.length} to ${filteredData.count} morph operations with total quantity of ${filteredQuantity} cards`);
       return filteredData;
     }
     
@@ -403,24 +440,33 @@ async function getMorphings(forceRefresh = false, period = 'all') {
     if (cachedData) {
       console.log('Returning cached morphings data after fetch error');
       const morphingsData = cachedData.morphings || cachedData.morphs || [];
+      // Filter by period using timestampISO consistently
+      const filteredMorphs = filterByPeriod(
+        morphingsData,
+        period,
+        { timestampField: 'timestamp', dateField: 'timestampISO' }
+      );
+      
+      // Calculate total quantity for filtered data
+      const totalQuantity = filteredMorphs.reduce((sum, morph) => sum + (parseInt(morph.quantity, 10) || 1), 0);
+      
       const filteredData = {
         ...cachedData,
-        // Ensure we have a morphings field even if original only has morphs
-        morphings: filterByPeriod(
-          morphingsData,
-          period,
-          { timestampField: 'timestamp', dateField: 'morphDate' }
-        ),
+        morphings: filteredMorphs,
+        morphs: filteredMorphs,
+        count: filteredMorphs.length,
+        totalQuantity: totalQuantity, // Update totalQuantity for the filtered period
         fetchError: error.message
       };
-      filteredData.count = filteredData.morphings.length;
       return filteredData;
     }
     
     // Otherwise return empty result
     return {
       morphings: [],
+      morphs: [],
       count: 0,
+      totalQuantity: 0,
       ...createCacheMetadata(period),
       error: error.message
     };
@@ -452,7 +498,7 @@ async function init() {
     console.error('Error initializing Ardor service:', error);
     throw error; // Re-throw to let the application handle it
   }
-
+ 
   // Add cache events monitoring
   cacheService.events.on('error', (event) => {
     console.error(`Cache error in ${event.store} store:`, event.error);
@@ -496,8 +542,8 @@ module.exports = {
   init,
   getTrackedAssets,
   getCardBurns,
-  getTrades,        // Not getArdorTrades
-  getCraftings,     // Not getCrafts
+  getTrades,
+  getCraftings,
   getMorphings, // Make sure this is exported!
   getGiftzSales,
   getActiveUsers,

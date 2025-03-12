@@ -11,19 +11,30 @@ router.get('/morphs', async (req, res) => {
     
     console.log(`Processing morphs request with period=${period}, forceRefresh=${forceRefresh}`);
     
-    // Use the correct service import
-    const { getMorphings } = require('../services/ardor/morphing');
-    const morphingData = await getMorphings(forceRefresh, period);
+    // Get morphings data with proper service call
+    const ardorService = require('../services/ardorService');
+    const morphingData = await ardorService.getMorphings(forceRefresh, period);
     
-    // Ensure data structure matches what frontend expects
+    // Debug the data to verify totalQuantity is present
+    console.log(`API response ready - period: ${period}, count: ${morphingData.count}, totalQuantity: ${morphingData.totalQuantity}`);
+    
+    // FIXED: Properly create the response object using morphingData
     const response = {
       morphs: morphingData.morphs || [],
       count: morphingData.count || 0,
+      totalQuantity: morphingData.totalQuantity || 0,
       timestamp: morphingData.timestamp || new Date().toISOString(),
       period: period
     };
     
-    console.log(`Returning ${response.morphs.length} morphs`);
+    // Ensure totalQuantity is calculated and included based on FILTERED morphs
+    if (!response.totalQuantity && response.morphs) {
+      response.totalQuantity = response.morphs.reduce((sum, morph) => 
+        sum + (parseInt(morph.quantity, 10) || 1), 0);
+      console.log(`Recalculated totalQuantity for ${period}: ${response.totalQuantity} from ${response.morphs.length} operations`);
+    }
+    
+    console.log(`Returning ${response.morphs.length} morphs with total quantity ${response.totalQuantity}`);
     res.json(response);
   } catch (error) {
     console.error('Error processing morphs request:', error);
@@ -71,6 +82,19 @@ router.get('/trades/ardor', async (req, res) => {
     console.error('Error fetching Ardor trades:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// ...existing code...async (req, res) => {
+  // ...existing code...
+  const response = {
+    crafts: craftingData.crafts || [],
+    count: craftingData.count || 0,
+    totalQuantity: craftingData.totalQuantity || 0,
+    timestamp: craftingData.timestamp,
+    period: period
+  };
+  
+  res.json(response);
 });
 
 // ...existing code...
