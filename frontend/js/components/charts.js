@@ -1,385 +1,457 @@
 /**
- * Charts Component
- * 
- * Handles chart initialization, rendering, and updates.
+ * Chart Manager
+ * Manages data visualizations across the application
  */
 
-import { getState, setState } from '../state/index.js';
-import { fetchActivityData } from '../api/data.js';
+export class ChartManager {
+  constructor() {
+    this.charts = {};
+    this.chartDefaults = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+        }
+      }
+    };
+    
+    // Color schemes for different chart types
+    this.colorSchemes = {
+      burns: ['#ff6384', '#ff9f40', '#ffcd56'],
+      crafts: ['#4bc0c0', '#36a2eb', '#9966ff'],
+      trades: ['#42a5f5', '#7e57c2', '#26a69a'],
+      morphs: ['#78909c', '#5c6bc0', '#ec407a']
+    };
+  }
 
-/**
- * Initialize charts
- */
-export function initializeCharts() {
-  console.log('Initializing charts...');
-  
-  // Only initialize if Chart.js is available
-  if (typeof Chart === 'undefined') {
-    console.error('Chart.js not loaded');
-    return;
+  /**
+   * Initialize all charts with data
+   */
+  initializeCharts(data) {
+    this.initializeActivityChart(data);
+    this.initializeCardTypeDistributionChart(data);
+    this.initializeRarityDistributionChart(data);
+    this.initializeTradePriceChart(data);
   }
-  
-  // Initialize activity chart if not already done
-  if (!getState('charts.activity')) {
-    console.log('Initializing activity chart');
-    initActivityChart();
-  }
-  
-  // Initialize network chart if not already done
-  if (!getState('charts.network')) {
-    console.log('Initializing network chart');
-    initNetworkChart();
-  }
-  
-  // Set up event listener for period changes
-  document.addEventListener('period-changed', async (event) => {
-    console.log('Period change event received:', event.detail.period);
-    // Update charts with new period
-    await updateActivityChartForPeriod(event.detail.period);
-  });
-  
-  // Add a global refresh method
-  window.refreshCharts = async () => {
-    const currentPeriod = getState('currentPeriod');
-    console.log('Manually refreshing charts for period:', currentPeriod);
-    await updateActivityChartForPeriod(currentPeriod);
-    updateNetworkChart();
-  };
-  
-  console.log('Charts initialized');
-}
 
-/**
- * Initialize activity chart
- */
-function initActivityChart() {
-  const chartElement = document.getElementById('activity-chart');
-  if (!chartElement) {
-    console.error('Activity chart element not found');
-    return;
+  /**
+   * Update all charts with new data
+   */
+  updateCharts(data) {
+    this.updateActivityChart(data);
+    this.updateCardTypeDistributionChart(data);
+    this.updateRarityDistributionChart(data);
+    this.updateTradePriceChart(data);
   }
-  
-  try {
-    const ctx = chartElement.getContext('2d');
-    const chart = new Chart(ctx, {
+
+  /**
+   * Initialize activity over time chart
+   */
+  initializeActivityChart(data) {
+    const canvas = document.getElementById('activity-chart');
+    if (!canvas) return;
+    
+    const chartData = this.prepareActivityChartData(data);
+    
+    this.charts.activity = new Chart(canvas, {
       type: 'line',
-      data: {
-        labels: ['Loading...'],
-        datasets: [
-          {
-            label: 'Trades',
-            data: [0],
-            borderColor: '#5e35b1',
-            backgroundColor: 'rgba(94, 53, 177, 0.1)',
-            tension: 0.4,
-            fill: true
-          },
-          {
-            label: 'Burns',
-            data: [0],
-            borderColor: '#d32f2f',
-            backgroundColor: 'rgba(211, 47, 47, 0.1)',
-            tension: 0.4,
-            fill: true
-          },
-          {
-            label: 'Crafts',
-            data: [0],
-            borderColor: '#388e3c',
-            backgroundColor: 'rgba(56, 142, 60, 0.1)',
-            tension: 0.4,
-            fill: true
-          },
-          {
-            label: 'Morphs',
-            data: [0],
-            borderColor: '#ff9800',
-            backgroundColor: 'rgba(255, 152, 0, 0.1)',
-            tension: 0.4,
-            fill: true
-          },
-          {
-            label: 'Giftz Sales',
-            data: [0],
-            borderColor: '#9c27b0',
-            backgroundColor: 'rgba(156, 39, 176, 0.1)',
-            tension: 0.4,
-            fill: true
-          }
-        ]
-      },
+      data: chartData,
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { 
-            position: 'top',
-            labels: {
-              usePointStyle: true,
-              boxWidth: 10,
-              padding: 20
-            }
-          },
-          tooltip: { 
-            mode: 'index', 
-            intersect: false,
-            callbacks: {
-              title: function(tooltipItems) {
-                return tooltipItems[0].label;
-              },
-              label: function(context) {
-                let label = context.dataset.label || '';
-                if (label) {
-                  label += ': ';
-                }
-                if (context.parsed.y !== null) {
-                  label += context.parsed.y;
-                }
-                return label;
-              }
-            }
-          }
-        },
+        ...this.chartDefaults,
         scales: {
-          x: { 
-            grid: {
+          x: {
+            title: {
               display: true,
-              color: 'rgba(0, 0, 0, 0.05)'
+              text: 'Date'
             }
           },
-          y: { 
-            beginAtZero: true,
-            grid: {
+          y: {
+            title: {
               display: true,
-              color: 'rgba(0, 0, 0, 0.05)'
+              text: 'Number of Transactions'
             },
-            ticks: {
-              precision: 0 // Only show integer values
-            }
+            beginAtZero: true
           }
-        },
-        interaction: {
-          mode: 'nearest',
-          axis: 'x',
-          intersect: false
-        },
-        animation: {
-          duration: 1000
         }
       }
     });
-    
-    setState('charts.activity', chart);
-    
-    // Immediately fetch data for the current period
-    const currentPeriod = getState('currentPeriod');
-    updateActivityChartForPeriod(currentPeriod);
-  } catch (error) {
-    console.error('Error initializing activity chart:', error);
   }
-}
 
-/**
- * Initialize network distribution chart
- */
-function initNetworkChart() {
-  const chartElement = document.getElementById('network-chart');
-  if (!chartElement) return;
-  
-  try {
-    const ctx = chartElement.getContext('2d');
-    const chart = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Ardor', 'Polygon'],
-        datasets: [{
-          data: [50, 50],
-          backgroundColor: ['#5e35b1', '#3949ab']
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' }
-        },
-        cutout: '65%'
-      }
-    });
-    
-    setState('charts.network', chart);
-  } catch (error) {
-    console.error('Error initializing network chart:', error);
-  }
-}
-
-/**
- * Update all charts with latest data
- */
-export function updateCharts() {
-  try {
-    const currentPeriod = getState('currentPeriod');
-    updateActivityChartForPeriod(currentPeriod);
-    updateNetworkChart();
-  } catch (error) {
-    console.error('Error updating charts:', error);
-  }
-}
-
-/**
- * Update activity chart for a specific time period
- * @param {string} period - Time period (24h, 7d, 30d, all)
- */
-export async function updateActivityChartForPeriod(period) {
-  console.log('updateActivityChartForPeriod called with period:', period);
-  
-  const activityChart = getState('charts.activity');
-  if (!activityChart) {
-    console.warn('Activity chart not initialized, initializing now...');
-    initActivityChart();
-    return;
-  }
-  
-  try {
-    // Update chart title to show period
-    const periodDisplay = getPeriodDisplay(period);
-    activityChart.options.plugins.title = {
-      display: true,
-      text: `Assets Activity (${periodDisplay})`,
-      font: {
-        size: 16
-      }
-    };
-    
-    // Show loading state
-    activityChart.data.labels = ['Loading...'];
-    activityChart.data.datasets.forEach(dataset => {
-      dataset.data = [0];
-    });
-    activityChart.update('none'); // Update without animation
-    
-    // Fetch activity data for the selected period
-    console.log(`Fetching activity data for period: ${period}`);
-    const activityData = await fetchActivityData(period);
-    
-    if (!activityData || !activityData.labels || !Array.isArray(activityData.labels) || activityData.labels.length === 0) {
-      console.warn('No valid activity data received:', activityData);
-      activityChart.data.labels = ['No Data Available'];
-      activityChart.data.datasets.forEach(dataset => {
-        dataset.data = [0];
-      });
-      activityChart.update();
+  /**
+   * Update activity chart with new data
+   */
+  updateActivityChart(data) {
+    if (!this.charts.activity) {
+      this.initializeActivityChart(data);
       return;
     }
     
-    // Apply data to chart
-    activityChart.data.labels = activityData.labels;
+    const chartData = this.prepareActivityChartData(data);
     
-    console.log('Setting chart data:', {
-      labels: activityData.labels.length,
-      trades: activityData.trades?.length || 0,
-      burns: activityData.burns?.length || 0
-    });
+    this.charts.activity.data = chartData;
+    this.charts.activity.update();
+  }
+
+  /**
+   * Prepare data for activity chart
+   */
+  prepareActivityChartData(data) {
+    // Group transactions by date
+    const dateGroups = {};
     
-    // Update each dataset
-    const datasets = [
-      { key: 'trades', index: 0, label: 'Assets Traded' },
-      { key: 'burns', index: 1, label: 'Assets Burned' },
-      { key: 'crafts', index: 2, label: 'Assets Crafted' },
-      { key: 'morphs', index: 3, label: 'Assets Morphed' },
-      { key: 'giftz', index: 4, label: 'Giftz Assets Sold' }
-    ];
+    // Process burns
+    if (data.burns) {
+      data.burns.forEach(burn => {
+        const date = this.formatDateForGrouping(burn.date);
+        dateGroups[date] = dateGroups[date] || { burns: 0, crafts: 0, trades: 0, morphs: 0 };
+        dateGroups[date].burns++;
+      });
+    }
     
-    datasets.forEach(({ key, index, label }) => {
-      if (Array.isArray(activityData[key])) {
-        activityChart.data.datasets[index].data = activityData[key];
-        // Update dataset label to reflect asset quantities
-        activityChart.data.datasets[index].label = label;
-      } else {
-        console.warn(`Missing data for ${key}, using zeros`);
-        activityChart.data.datasets[index].data = Array(activityData.labels.length).fill(0);
+    // Process craftings
+    if (data.craftings) {
+      data.craftings.forEach(craft => {
+        const date = this.formatDateForGrouping(craft.date);
+        dateGroups[date] = dateGroups[date] || { burns: 0, crafts: 0, trades: 0, morphs: 0 };
+        dateGroups[date].crafts++;
+      });
+    }
+    
+    // Process trades
+    if (data.trades) {
+      data.trades.forEach(trade => {
+        const date = this.formatDateForGrouping(trade.date);
+        dateGroups[date] = dateGroups[date] || { burns: 0, crafts: 0, trades: 0, morphs: 0 };
+        dateGroups[date].trades++;
+      });
+    }
+    
+    // Process morphs
+    if (data.morphs) {
+      data.morphs.forEach(morph => {
+        const date = this.formatDateForGrouping(morph.date);
+        dateGroups[date] = dateGroups[date] || { burns: 0, crafts: 0, trades: 0, morphs: 0 };
+        dateGroups[date].morphs++;
+      });
+    }
+    
+    // Sort dates
+    const sortedDates = Object.keys(dateGroups).sort();
+    
+    // Prepare chart datasets
+    return {
+      labels: sortedDates,
+      datasets: [
+        {
+          label: 'Burns',
+          data: sortedDates.map(date => dateGroups[date].burns),
+          borderColor: this.colorSchemes.burns[0],
+          backgroundColor: this.colorSchemes.burns[0] + '80', // With transparency
+          fill: false,
+          tension: 0.1
+        },
+        {
+          label: 'Crafts',
+          data: sortedDates.map(date => dateGroups[date].crafts),
+          borderColor: this.colorSchemes.crafts[0],
+          backgroundColor: this.colorSchemes.crafts[0] + '80',
+          fill: false,
+          tension: 0.1
+        },
+        {
+          label: 'Trades',
+          data: sortedDates.map(date => dateGroups[date].trades),
+          borderColor: this.colorSchemes.trades[0],
+          backgroundColor: this.colorSchemes.trades[0] + '80',
+          fill: false,
+          tension: 0.1
+        },
+        {
+          label: 'Morphs',
+          data: sortedDates.map(date => dateGroups[date].morphs),
+          borderColor: this.colorSchemes.morphs[0],
+          backgroundColor: this.colorSchemes.morphs[0] + '80',
+          fill: false,
+          tension: 0.1
+        }
+      ]
+    };
+  }
+
+  /**
+   * Initialize card type distribution chart
+   */
+  initializeCardTypeDistributionChart(data) {
+    const canvas = document.getElementById('card-type-chart');
+    if (!canvas) return;
+    
+    const chartData = this.prepareCardTypeDistributionData(data);
+    
+    this.charts.cardType = new Chart(canvas, {
+      type: 'pie',
+      data: chartData,
+      options: {
+        ...this.chartDefaults,
+        plugins: {
+          legend: {
+            position: 'right',
+          }
+        }
       }
     });
-    
-    // Update tooltip callbacks to be quantity-aware
-    activityChart.options.plugins.tooltip.callbacks.title = function(tooltipItems) {
-      return tooltipItems[0].label;
-    };
-    
-    activityChart.options.plugins.tooltip.callbacks.label = function(context) {
-      const label = context.dataset.label || '';
-      const value = context.parsed.y;
-      return `${label}: ${value.toLocaleString()} ${value === 1 ? 'asset' : 'assets'}`;
-    };
-    
-    // Update the chart with animation
-    activityChart.update();
-    
-    console.log('Activity chart updated for period:', period);
-  } catch (error) {
-    console.error('Error updating activity chart:', error);
-    
-    // Show error in chart
-    if (activityChart) {
-      activityChart.data.labels = ['Error loading data'];
-      activityChart.data.datasets.forEach(dataset => {
-        dataset.data = [0];
-      });
-      activityChart.update();
-    }
   }
-}
 
-/**
- * Update network distribution chart
- */
-function updateNetworkChart() {
-  const networkChart = getState('charts.network');
-  const activityData = getState('currentData.activityData');
-  
-  if (!networkChart || !activityData || !activityData.network_distribution) return;
-  
-  try {
-    // Update data
-    networkChart.data.datasets[0].data = [
-      activityData.network_distribution.ardor || 50,
-      activityData.network_distribution.polygon || 50
+  /**
+   * Update card type distribution chart
+   */
+  updateCardTypeDistributionChart(data) {
+    if (!this.charts.cardType) {
+      this.initializeCardTypeDistributionChart(data);
+      return;
+    }
+    
+    const chartData = this.prepareCardTypeDistributionData(data);
+    
+    this.charts.cardType.data = chartData;
+    this.charts.cardType.update();
+  }
+
+  /**
+   * Prepare data for card type distribution chart
+   */
+  prepareCardTypeDistributionData(data) {
+    // Count cards by type
+    const typeCounts = { Terrestrial: 0, Aerial: 0, Aquatic: 0, Unknown: 0 };
+    
+    // Combine all transaction types that have card info
+    const allCards = [
+      ...(data.burns || []),
+      ...(data.craftings || [])
     ];
     
-    networkChart.update();
-  } catch (error) {
-    console.error('Error updating network chart:', error);
+    allCards.forEach(card => {
+      const type = card.cardType || 'Unknown';
+      typeCounts[type] = (typeCounts[type] || 0) + 1;
+    });
+    
+    // Prepare chart data
+    return {
+      labels: Object.keys(typeCounts),
+      datasets: [
+        {
+          data: Object.values(typeCounts),
+          backgroundColor: [
+            '#4bc0c0', // Terrestrial
+            '#ff6384', // Aerial
+            '#36a2eb', // Aquatic
+            '#c9cbcf'  // Unknown
+          ]
+        }
+      ]
+    };
   }
-}
 
-/**
- * Format period for display
- * @param {string} period - Time period code
- * @returns {string} Human-readable period
- */
-function getPeriodDisplay(period) {
-  switch (period) {
-    case '24h': return 'Last 24 Hours';
-    case '7d': return 'Last 7 Days';
-    case '30d': return 'Last 30 Days';
-    case 'all': return 'All Time';
-    default: return period;
+  /**
+   * Initialize rarity distribution chart
+   */
+  initializeRarityDistributionChart(data) {
+    const canvas = document.getElementById('rarity-chart');
+    if (!canvas) return;
+    
+    const chartData = this.prepareRarityDistributionData(data);
+    
+    this.charts.rarity = new Chart(canvas, {
+      type: 'bar',
+      data: chartData,
+      options: {
+        ...this.chartDefaults,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Count'
+            }
+          }
+        }
+      }
+    });
   }
-}
 
-/**
- * Clean up charts (prevent memory leaks)
- */
-export function destroyCharts() {
-  const activityChart = getState('charts.activity');
-  const networkChart = getState('charts.network');
-  
-  if (activityChart) {
-    activityChart.destroy();
-    setState('charts.activity', null);
+  /**
+   * Update rarity distribution chart
+   */
+  updateRarityDistributionChart(data) {
+    if (!this.charts.rarity) {
+      this.initializeRarityDistributionChart(data);
+      return;
+    }
+    
+    const chartData = this.prepareRarityDistributionData(data);
+    
+    this.charts.rarity.data = chartData;
+    this.charts.rarity.update();
   }
-  
-  if (networkChart) {
-    networkChart.destroy();
-    setState('charts.network', null);
+
+  /**
+   * Prepare data for rarity distribution chart
+   */
+  prepareRarityDistributionData(data) {
+    // Count cards by rarity
+    const rarityCounts = { common: 0, rare: 0, 'very rare': 0, legendary: 0, mythical: 0, unknown: 0 };
+    
+    // Combine all transaction types that have card info
+    const allCards = [
+      ...(data.burns || []),
+      ...(data.craftings || [])
+    ];
+    
+    allCards.forEach(card => {
+      const rarity = (card.cardRarity || 'unknown').toLowerCase();
+      rarityCounts[rarity] = (rarityCounts[rarity] || 0) + 1;
+    });
+    
+    // Prepare chart data
+    return {
+      labels: Object.keys(rarityCounts).map(r => r.charAt(0).toUpperCase() + r.slice(1)),
+      datasets: [
+        {
+          label: 'Cards by Rarity',
+          data: Object.values(rarityCounts),
+          backgroundColor: [
+            '#a5d6a7', // Common
+            '#4fc3f7', // Rare
+            '#ba68c8', // Very Rare
+            '#ffd54f', // Legendary
+            '#ff8a65', // Mythical
+            '#e0e0e0'  // Unknown
+          ]
+        }
+      ]
+    };
+  }
+
+  /**
+   * Initialize trade price chart
+   */
+  initializeTradePriceChart(data) {
+    const canvas = document.getElementById('trade-price-chart');
+    if (!canvas) return;
+    
+    const chartData = this.prepareTradePriceData(data);
+    
+    this.charts.tradePrice = new Chart(canvas, {
+      type: 'line',
+      data: chartData,
+      options: {
+        ...this.chartDefaults,
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Date'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Price (GEM)'
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Update trade price chart
+   */
+  updateTradePriceChart(data) {
+    if (!this.charts.tradePrice) {
+      this.initializeTradePriceChart(data);
+      return;
+    }
+    
+    const chartData = this.prepareTradePriceData(data);
+    
+    this.charts.tradePrice.data = chartData;
+    this.charts.tradePrice.update();
+  }
+
+  /**
+   * Prepare data for trade price chart
+   */
+  prepareTradePriceData(data) {
+    if (!data.trades || data.trades.length === 0) {
+      return {
+        labels: [],
+        datasets: [
+          {
+            label: 'Average Price',
+            data: [],
+            borderColor: this.colorSchemes.trades[0],
+            backgroundColor: this.colorSchemes.trades[0] + '80',
+            fill: false,
+            tension: 0.1
+          }
+        ]
+      };
+    }
+    
+    // Group trades by date and calculate average prices
+    const dateGroups = {};
+    
+    data.trades.forEach(trade => {
+      const date = this.formatDateForGrouping(trade.date);
+      
+      if (!dateGroups[date]) {
+        dateGroups[date] = {
+          sum: 0,
+          count: 0
+        };
+      }
+      
+      dateGroups[date].sum += parseFloat(trade.price || 0);
+      dateGroups[date].count += 1;
+    });
+    
+    // Sort dates
+    const sortedDates = Object.keys(dateGroups).sort();
+    
+    // Calculate average price for each date
+    const averagePrices = sortedDates.map(date => {
+      const group = dateGroups[date];
+      return group.count > 0 ? group.sum / group.count : 0;
+    });
+    
+    // Prepare chart data
+    return {
+      labels: sortedDates,
+      datasets: [
+        {
+          label: 'Average Price',
+          data: averagePrices,
+          borderColor: this.colorSchemes.trades[0],
+          backgroundColor: this.colorSchemes.trades[0] + '80',
+          fill: false,
+          tension: 0.1
+        }
+      ]
+    };
+  }
+
+  /**
+   * Format date for grouping in charts (YYYY-MM-DD)
+   */
+  formatDateForGrouping(date) {
+    if (typeof date === 'string') {
+      date = new Date(date);
+    }
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 }

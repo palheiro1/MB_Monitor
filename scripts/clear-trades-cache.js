@@ -60,7 +60,7 @@ legacyPeriodFiles.forEach(filename => {
 });
 
 // Also delete all data cache that might contain old trade counts
-const allDataPath = path.join(STORAGE_DIR, 'ardor_all_data.json');
+const allDataPath = path.join(STORAGE_DIR, 'unified_all_data.json');
 if (fs.existsSync(allDataPath)) {
   try {
     fs.unlinkSync(allDataPath);

@@ -1,172 +1,170 @@
 /**
- * State Management Module
- * 
- * Centralizes application state management using a simple store pattern.
- * Maintains the single source of truth for all application data.
+ * Application State Management
+ * Centralized state store with event notification
  */
 
-import { DEFAULT_PERIOD } from '../config.js';
-
-// Application state store
-let state = {
-  // Configuration
-  config: {
-    API_BASE_URL: '/api',
-    REFRESH_INTERVAL: 60000, // 60 seconds
-    DEFAULT_PERIOD: DEFAULT_PERIOD,
-    ANIMATION_ENABLED: true,
-    CHART_ANIMATION_DURATION: 800,
-    COUNTER_ANIMATION_DURATION: 1000
-  },
-  
-  // UI state
-  currentPeriod: DEFAULT_PERIOD,
-  isLoading: false,
-  sortDirection: 'desc',
-  searchQuery: '',
-  animationsEnabled: true,
-  
-  // Chart references
-  charts: {
-    activity: null,
-    network: null
-  },
-  
-  // Periodic refresh
-  refreshTimer: null,
-  lastUpdate: null,
-  
-  // Data storage
-  currentData: {
-    statsData: null,
-    activityData: null,
-    tradesData: null,
-    giftzData: null,
-    craftsData: null,
-    morphsData: null,
-    burnsData: null,
-    usersData: null,
-    cacheData: null
-  },
-  
-  // Previous data (for comparison)
-  previousData: {}
-};
-
-/**
- * Load configuration from data attributes in the script tag
- */
-function loadConfig() {
-  const configEl = document.getElementById('app-config');
-  
-  if (configEl) {
-    if (configEl.dataset.apiUrl) state.config.API_BASE_URL = configEl.dataset.apiUrl;
-    if (configEl.dataset.refreshInterval) state.config.REFRESH_INTERVAL = parseInt(configEl.dataset.refreshInterval);
-    if (configEl.dataset.defaultPeriod) state.config.DEFAULT_PERIOD = configEl.dataset.defaultPeriod;
-    if (configEl.dataset.animationEnabled) state.config.ANIMATION_ENABLED = configEl.dataset.animationEnabled === 'true';
+export class AppState {
+  constructor() {
+    // Initialize state
+    this.state = {
+      data: {
+        burns: [],
+        craftings: [],
+        trades: [],
+        morphs: [],
+        statistics: {
+          totals: {
+            burns: 0,
+            craftings: 0,
+            trades: 0,
+            morphs: 0
+          }
+        }
+      },
+      ui: {
+        loading: false,
+        currentTab: 'overview',
+        period: 'all',
+        filters: {
+          cardType: null,
+          cardRarity: null,
+          dateRange: null
+        }
+      },
+      lastUpdated: null
+    };
+    
+    // Event listeners
+    this.eventListeners = {
+      dataUpdated: [],
+      uiChanged: [],
+      periodChanged: [],
+      filterChanged: []
+    };
   }
-  
-  // Update currentPeriod to match config
-  state.currentPeriod = state.config.DEFAULT_PERIOD;
-  state.animationsEnabled = state.config.ANIMATION_ENABLED;
-}
 
-/**
- * Initialize application state
- * @param {Object} initialState - Optional initial state to override defaults
- */
-export function initState(initialState = {}) {
-  // Load config from DOM first
-  loadConfig();
-  
-  // Then merge any provided initialState
-  Object.assign(state, initialState);
-}
+  /**
+   * Update data in state and trigger events
+   */
+  updateData(data) {
+    this.state.data = data;
+    this.state.lastUpdated = new Date();
+    this.triggerEvent('dataUpdated', data);
+  }
 
-/**
- * Get state value
- * @param {string} key - State key to get (supports dot notation for nested props)
- * @param {*} defaultValue - Default value if key not found
- * @returns {*} State value
- */
-export function getState(key, defaultValue = null) {
-  if (!key) return { ...state };
-  
-  // Handle dot notation for nested properties
-  const keys = key.split('.');
-  let value = state;
-  
-  for (const k of keys) {
-    if (value === null || value === undefined || typeof value !== 'object') {
-      return defaultValue;
+  /**
+   * Get current data
+   */
+  getData() {
+    return this.state.data;
+  }
+
+  /**
+   * Set loading state
+   */
+  setLoading(isLoading) {
+    this.state.ui.loading = isLoading;
+    this.triggerEvent('uiChanged', { loading: isLoading });
+  }
+
+  /**
+   * Get loading state
+   */
+  isLoading() {
+    return this.state.ui.loading;
+  }
+
+  /**
+   * Set current tab
+   */
+  setCurrentTab(tabId) {
+    this.state.ui.currentTab = tabId;
+    this.triggerEvent('uiChanged', { currentTab: tabId });
+  }
+
+  /**
+   * Get current tab
+   */
+  getCurrentTab() {
+    return this.state.ui.currentTab;
+  }
+
+  /**
+   * Set period filter
+   */
+  setPeriod(period) {
+    this.state.ui.period = period;
+    this.triggerEvent('periodChanged', period);
+  }
+
+  /**
+   * Get current period
+   */
+  getPeriod() {
+    return this.state.ui.period;
+  }
+
+  /**
+   * Set filters
+   */
+  setFilter(filterType, value) {
+    this.state.ui.filters[filterType] = value;
+    this.triggerEvent('filterChanged', { 
+      type: filterType, 
+      value,
+      filters: this.state.ui.filters
+    });
+  }
+
+  /**
+   * Get current filters
+   */
+  getFilters() {
+    return this.state.ui.filters;
+  }
+
+  /**
+   * Get last updated time
+   */
+  getLastUpdated() {
+    return this.state.lastUpdated;
+  }
+
+  /**
+   * Add event listener
+   */
+  addEventListener(event, callback) {
+    if (!this.eventListeners[event]) {
+      this.eventListeners[event] = [];
     }
-    value = value[k];
-    if (value === undefined) {
-      return defaultValue;
+    this.eventListeners[event].push(callback);
+  }
+
+  /**
+   * Remove event listener
+   */
+  removeEventListener(event, callback) {
+    if (!this.eventListeners[event]) {
+      return;
     }
+    this.eventListeners[event] = this.eventListeners[event].filter(
+      listener => listener !== callback
+    );
   }
-  
-  return value;
-}
 
-/**
- * Set state value
- * @param {string} key - State key to set
- * @param {*} value - New value
- */
-export function setState(key, value) {
-  if (!key) return;
-  
-  // Handle dot notation for nested properties
-  const keys = key.split('.');
-  
-  if (keys.length === 1) {
-    state[key] = value;
-    return;
-  }
-  
-  // Handle nested properties
-  let current = state;
-  for (let i = 0; i < keys.length - 1; i++) {
-    const k = keys[i];
-    if (!(k in current)) {
-      current[k] = {};
+  /**
+   * Trigger event
+   */
+  triggerEvent(event, data) {
+    if (!this.eventListeners[event]) {
+      return;
     }
-    current = current[k];
+    this.eventListeners[event].forEach(callback => {
+      try {
+        callback(data);
+      } catch (error) {
+        console.error(`Error in ${event} event handler:`, error);
+      }
+    });
   }
-  
-  current[keys[keys.length - 1]] = value;
-}
-
-/**
- * Save current data as previous data for comparison
- */
-export function savePreviousData() {
-  state.previousData = JSON.parse(JSON.stringify(state.currentData));
-}
-
-/**
- * Toggle sort direction and return new value
- * @returns {string} New sort direction ('asc' or 'desc')
- */
-export function toggleSortDirection() {
-  const newDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
-  state.sortDirection = newDirection;
-  return newDirection;
-}
-
-/**
- * Get the API base URL
- * @returns {string} API base URL
- */
-export function getApiBaseUrl() {
-  return state.config.API_BASE_URL;
-}
-
-/**
- * Get the refresh interval
- * @returns {number} Refresh interval in milliseconds
- */
-export function getRefreshInterval() {
-  return state.config.REFRESH_INTERVAL;
 }

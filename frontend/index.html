@@ -6,7 +6,7 @@
   <title>Mythical Beings Monitor</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
   
   <!-- Application Configuration -->
   <script id="app-config" 
@@ -19,521 +19,233 @@
   </script>
 </head>
 <body>
-  <div class="container-fluid">
-    <nav class="navbar navbar-expand-lg fixed-top mb-4">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="#">
-          <i class="fas fa-dragon text-primary me-2"></i>
-          <span>Mythical Beings Monitor</span>
-        </a>
-        <div class="d-flex align-items-center">
-          <div class="time-filter me-3">
-            <span class="small text-muted me-1">Period:</span>
-            <button class="btn btn-sm btn-outline-primary period-selector" data-period="24h">24h</button>
-            <button class="btn btn-sm btn-outline-primary period-selector" data-period="7d">7d</button>
-            <button class="btn btn-sm btn-outline-primary period-selector" data-period="30d">30d</button>
-            <button class="btn btn-sm btn-primary period-selector active" data-period="all">All</button>
-          </div>
-          <span class="badge rounded-pill bg-success me-2" id="status-badge">
-            <i class="fas fa-check-circle me-1"></i> Live
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg fixed-top">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">
+        <img src="/favicon.ico" alt="MB" width="30" height="30" class="d-inline-block align-text-top">
+        MB Monitor
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" href="#dashboard">Dashboard</a>
+          </li>
+        </ul>
+        <div class="ms-auto d-flex align-items-center">
+          <span class="me-3">
+            Status: <span id="status-badge" class="badge bg-secondary">Loading</span>
           </span>
-          <button id="refresh-btn" class="btn btn-sm btn-outline-primary">
-            <i class="fas fa-sync-alt me-1"></i> Refresh
+          <button id="refresh-btn" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-sync-alt"></i> Refresh
           </button>
         </div>
       </div>
-    </nav>
+    </div>
+  </nav>
 
-    <div class="stats-container mb-3">
-      <div class="stats-wrapper">
-        <div class="d-flex stats-line">
-          <div class="inline-stat trades">
-            <div class="stat-content">
-              <span class="stat-icon"><i class="fas fa-exchange-alt"></i></span>
-              <span id="total-trades" class="stat-number">-</span>
-              <span class="stat-label">Trades</span>
-            </div>
-          </div>
-          <div class="inline-stat users">
-            <div class="stat-content">
-              <span class="stat-icon"><i class="fas fa-users"></i></span>
-              <span id="active-users" class="stat-number">-</span>
-              <span class="stat-label">Active Users</span>
-            </div>
-          </div>
-          <div class="inline-stat crafts">
-            <div class="stat-content">
-              <span class="stat-icon"><i class="fas fa-hammer"></i></span>
-              <span id="card-crafts" class="stat-number">-</span>
-              <span class="stat-label">Card Crafts</span>
-            </div>
-          </div>
-          <div class="inline-stat burns">
-            <div class="stat-content">
-              <span class="stat-icon"><i class="fas fa-fire"></i></span>
-              <span id="card-burns" class="stat-number">-</span>
-              <span class="stat-label">Card Burns</span>
-            </div>
-          </div>
-          <div class="inline-stat giftz">
-            <div class="stat-content">
-              <span class="stat-icon"><i class="fas fa-gift"></i></span>
-              <span id="giftz-sales" class="stat-number">-</span>
-              <span class="stat-label">Giftz Sales</span>
-            </div>
-          </div>
-          <div class="inline-stat morphs">
-            <div class="stat-content">
-              <span class="stat-icon"><i class="fas fa-magic"></i></span>
-              <span id="card-morphs" class="stat-number">-</span>
-              <span class="stat-label">Card Morphs</span>
+  <!-- Main Container -->
+  <div class="container-fluid pt-5 mt-4">
+    <!-- Header Stats -->
+    <div class="row stats-row mb-3">
+      <div class="col-md-12">
+        <div class="card mb-3">
+          <div class="card-body py-2">
+            <div class="row">
+              <div class="col-md-10">
+                <div class="btn-group period-buttons">
+                  <button data-period="24h" class="btn btn-sm btn-outline-secondary period-selector">24h</button>
+                  <button data-period="7d" class="btn btn-sm btn-outline-secondary period-selector">7d</button>
+                  <button data-period="30d" class="btn btn-sm btn-outline-secondary period-selector active">30d</button>
+                  <button data-period="all" class="btn btn-sm btn-outline-secondary period-selector">All</button>
+                </div>
+              </div>
+              <div class="col-md-2 text-end">
+                <small class="text-muted">Updated <span id="last-update">-</span></small>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card shadow">
-          <div class="card-header bg-primary text-white">
-            <h5 class="m-0">Activity Trends</h5>
-          </div>
+    <!-- Summary Stats Cards -->
+    <div class="row stats-row mb-3">
+      <div class="col-md-2 col-sm-6">
+        <div class="card stat-card mb-3">
           <div class="card-body">
-            <canvas id="activity-chart" height="300" style="width: 100%; height: 300px; display: block;"></canvas>
+            <h6 class="card-subtitle text-muted">Total Trades</h6>
+            <h3 class="card-title counter" id="total-trades">-</h3>
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card shadow magical-card">
-          <div class="card-header bg-primary text-white position-relative">
-            <div class="glowing-runes"></div>
-            <h5 class="mb-3 mt-2 text-center">Chronicles of Activity</h5>
-            
-            <!-- Magical tabs -->
-            <ul class="nav nav-pills magical-tabs justify-content-center" id="activity-tabs" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="ardor-trades-tab" data-bs-toggle="tab" data-bs-target="#ardor-trades-content" type="button">
-                  <i class="fas fa-exchange-alt tab-icon"></i>
-                  <span class="tab-text">Ardor Trades</span>
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="polygon-trades-tab" data-bs-toggle="tab" data-bs-target="#polygon-trades-content" type="button">
-                  <i class="fas fa-project-diagram tab-icon"></i>
-                  <span class="tab-text">Polygon Trades</span>
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="giftz-tab" data-bs-toggle="tab" data-bs-target="#giftz-content" type="button">
-                  <i class="fas fa-gift tab-icon"></i>
-                  <span class="tab-text">Giftz Sales</span>
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="crafts-tab" data-bs-toggle="tab" data-bs-target="#crafts-content" type="button">
-                  <i class="fas fa-hammer tab-icon"></i>
-                  <span class="tab-text">Crafts</span>
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="morphs-tab" data-bs-toggle="tab" data-bs-target="#morphs-content" type="button">
-                  <i class="fas fa-magic tab-icon"></i>
-                  <span class="tab-text">Morphs</span>
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="burns-tab" data-bs-toggle="tab" data-bs-target="#burns-content" type="button">
-                  <i class="fas fa-fire tab-icon"></i>
-                  <span class="tab-text">Burns</span>
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-content" type="button">
-                  <i class="fas fa-users tab-icon"></i>
-                  <span class="tab-text">Active Users</span>
-                </button>
-              </li>
-            </ul>
-          </div>
-          
-          <div class="card-body p-0">
-            <div class="tab-content">
-              <!-- Ardor Trades Tab -->
-              <div class="tab-pane fade show active p-3" id="ardor-trades-content">
-                <div class="search-bar mb-3">
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control search-input" placeholder="Search for cards, buyers or sellers...">
-                    <button class="btn btn-outline-primary sort-btn" type="button">
-                      <i class="fas fa-sort-amount-down"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="transaction-cards" id="ardor-trades-cards">
-                  <!-- Cards will be inserted here by JS -->
-                </div>
-              </div>
-              
-              <!-- Polygon Trades Tab -->
-              <div class="tab-pane fade p-3" id="polygon-trades-content">
-                <div class="search-bar mb-3">
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control search-input" placeholder="Search for cards or addresses...">
-                    <button class="btn btn-outline-primary sort-btn" type="button">
-                      <i class="fas fa-sort-amount-down"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="transaction-cards" id="polygon-trades-cards">
-                  <!-- Cards will be inserted here by JS -->
-                </div>
-              </div>
-
-              <!-- Giftz Tab -->
-              <div class="tab-pane fade p-3" id="giftz-content">
-                <div class="search-bar mb-3">
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control search-input" placeholder="Search for giftz transactions...">
-                    <button class="btn btn-outline-primary sort-btn" type="button">
-                      <i class="fas fa-sort-amount-down"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="transaction-cards" id="giftz-cards">
-                  <!-- Cards will be inserted here by JS -->
-                </div>
-              </div>
-
-              <!-- Crafts Tab -->
-              <div class="tab-pane fade p-3" id="crafts-content">
-                <div class="search-bar mb-3">
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control search-input" placeholder="Search for crafts...">
-                    <button class="btn btn-outline-primary sort-btn" type="button">
-                      <i class="fas fa-sort-amount-down"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="transaction-cards" id="crafts-cards">
-                  <!-- Cards will be inserted here by JS -->
-                </div>
-              </div>
-
-              <!-- Morphs Tab -->
-              <div class="tab-pane fade p-3" id="morphs-content">
-                <div class="search-bar mb-3">
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control search-input" placeholder="Search for morphs...">
-                    <button class="btn btn-outline-primary sort-btn" type="button">
-                      <i class="fas fa-sort-amount-down"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="transaction-cards" id="morphs-cards">
-                  <!-- Cards will be inserted here by JS -->
-                </div>
-              </div>
-
-              <!-- Burns Tab -->
-              <div class="tab-pane fade p-3" id="burns-content">
-                <div class="search-bar mb-3">
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control search-input" placeholder="Search for burns...">
-                    <button class="btn btn-outline-primary sort-btn" type="button">
-                      <i class="fas fa-sort-amount-down"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="transaction-cards" id="burns-cards">
-                  <!-- Cards will be inserted here by JS -->
-                </div>
-              </div>
-
-              <!-- Users Tab -->
-              <div class="tab-pane fade p-3" id="users-content">
-                <div class="search-bar mb-3">
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control search-input" placeholder="Search for users...">
-                    <button class="btn btn-outline-primary sort-btn" type="button">
-                      <i class="fas fa-sort-amount-down"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="transaction-cards" id="ardor-users-cards">
-                  <!-- Cards will be inserted here by JS -->
-                </div>
-                <div class="transaction-cards" id="polygon-users-cards">
-                  <!-- Cards will be inserted here by JS -->
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Cache Status Section -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card shadow">
-          <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-            <h5 class="m-0">Cache Status <span class="badge bg-info ms-2">Debug</span></h5>
-            <button class="btn btn-sm btn-light" id="refresh-cache-stats">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
+      <div class="col-md-2 col-sm-6">
+        <div class="card stat-card mb-3">
           <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-sm table-hover" id="cache-stats-table">
-                <thead>
-                  <tr>
-                    <th>Cache File</th>
-                    <th>Records</th>
-                    <th>Size</th>
-                    <th>Date Range</th>
-                    <th>Last Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td colspan="5" class="text-center">Loading cache statistics...</td>
-                  </tr>
-                </tbody>
-              </table>
+            <h6 class="card-subtitle text-muted">Cards Burned</h6>
+            <h3 class="card-title counter" id="card-burns">-</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <div class="card stat-card mb-3">
+          <div class="card-body">
+            <h6 class="card-subtitle text-muted">Cards Crafted</h6>
+            <h3 class="card-title counter" id="card-crafts">-</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <div class="card stat-card mb-3">
+          <div class="card-body">
+            <h6 class="card-subtitle text-muted">Cards Morphed</h6>
+            <h3 class="card-title counter" id="morphs-count">-</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <div class="card stat-card mb-3">
+          <div class="card-body">
+            <h6 class="card-subtitle text-muted">Active Users</h6>
+            <h3 class="card-title counter" id="active-users">-</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart Row -->
+    <div class="row mb-4">
+      <div class="col-md-12">
+        <div class="card" id="activity-chart-container">
+          <div class="card-body">
+            <h5 class="card-title">Activity Overview</h5>
+            <canvas id="activity-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs" id="activityTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="trades-tab-btn" data-bs-toggle="tab" data-bs-target="#trades-tab" type="button" role="tab">
+          <i class="fas fa-exchange-alt"></i> Trades
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="burns-tab-btn" data-bs-toggle="tab" data-bs-target="#burns-tab" type="button" role="tab">
+          <i class="fas fa-fire"></i> Burns
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="crafts-tab-btn" data-bs-toggle="tab" data-bs-target="#crafts-tab" type="button" role="tab">
+          <i class="fas fa-hammer"></i> Crafts
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="morphs-tab-btn" data-bs-toggle="tab" data-bs-target="#morphs-tab" type="button" role="tab">
+          <i class="fas fa-magic"></i> Morphs
+        </button>
+      </li>
+    </ul>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="activityTabContent">
+      <!-- Trades Tab -->
+      <div class="tab-pane fade show active" id="trades-tab" role="tabpanel">
+        <div class="row mb-3 mt-3">
+          <div class="col-md-6">
+            <input type="text" class="form-control search-input" placeholder="Search trades...">
+          </div>
+          <div class="col-md-6 text-end">
+            <div class="btn-group">
+              <button class="btn btn-outline-secondary sort-btn" data-sort="timestamp">
+                <i class="fas fa-sort"></i> Date
+              </button>
+              <button class="btn btn-outline-secondary sort-btn" data-sort="price">
+                <i class="fas fa-sort"></i> Price
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Footer -->
-  <footer class="footer mt-auto py-4">
-    <div class="mythical-border"></div>
-    <div class="container">
-      <div class="row align-items-center">
-        <div class="col-md-4 mb-3 mb-md-0">
-          <div class="footer-mascot">
-            <i class="fas fa-dragon"></i>
-          </div>
-          <div class="footer-quote">
-            "Where data meets magic"
-          </div>
-        </div>
-        <div class="col-md-4 mb-3 mb-md-0 text-center">
-          <div class="footer-brand">Mythical Beings</div>
-          <div class="footer-update">
-            <i class="fas fa-clock me-1 pulse"></i> Last Updated: <span id="last-update">-</span>
-          </div>
-          <div class="mythical-icons mt-2">
-            <i class="mythical-icon fas fa-ghost"></i>
-            <i class="mythical-icon fas fa-hat-wizard"></i>
-            <i class="mythical-icon fas fa-dragon"></i>
-            <i class="mythical-icon fas fa-spider"></i>
-            <i class="mythical-icon fas fa-broom"></i>
-          </div>
-        </div>
-        <div class="col-md-4 text-end d-none d-md-block">
-          <div class="footer-links">
-            <a href="#" class="footer-link" id="about-link"><i class="fas fa-info-circle me-1"></i> About</a>
-            <a href="#" class="footer-link" id="api-docs-link"><i class="fas fa-book me-1"></i> API Docs</a>
-            <a href="https://github.com/palheiro1/MB_Monitor" target="_blank" class="footer-link"><i class="fab fa-github me-1"></i> GitHub</a>
-          </div>
-          <div class="copyright-text">
-            © 2023 Mythical Beings Monitor
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card-container" id="ardor-trades-cards"></div>
           </div>
         </div>
       </div>
-    </div>
-  </footer>
-  
-  <!-- Modal for About -->
-  <div class="modal fade" id="about-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="fas fa-dragon me-2"></i> About Mythical Beings Monitor</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p>This application provides real-time monitoring of mythical being activities across Ardor and Polygon blockchains.</p>
-          <p>The monitor tracks trades, crafting, morphing, and other blockchain activities related to Mythical Beings NFTs.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Card Templates -->
-  <template id="trade-card-template">
-    <div class="transaction-card trade-card">
-      <div class="transaction-header">
-        <div class="card-badge"><i class="fas fa-exchange-alt"></i> Trade</div>
-        <div class="transaction-time"></div>
-      </div>
-      <div class="transaction-body">
-        <div class="card-name"></div>
-        <div class="transaction-details">
-          <div class="transaction-users">
-            <span class="buyer"><i class="fas fa-user"></i> <span class="buyer-name"></span></span>
-            <i class="fas fa-long-arrow-alt-left transaction-arrow"></i>
-            <span class="seller"><i class="fas fa-user"></i> <span class="seller-name"></span></span>
+      
+      <!-- Burns Tab -->
+      <div class="tab-pane fade" id="burns-tab" role="tabpanel">
+        <div class="row mb-3 mt-3">
+          <div class="col-md-6">
+            <input type="text" class="form-control search-input" placeholder="Search burns...">
           </div>
-          <div class="trade-specifics">
-            <div class="price-tag">
-              <i class="fas fa-tag"></i> <span class="price"></span> <span class="currency">IGNIS</span>
-            </div>
-            <div class="quantity-tag">
-              <i class="fas fa-layer-group"></i> <span class="quantity">1</span>
+          <div class="col-md-6 text-end">
+            <div class="btn-group">
+              <button class="btn btn-outline-secondary sort-btn" data-sort="timestamp">
+                <i class="fas fa-sort"></i> Date
+              </button>
+              <button class="btn btn-outline-secondary sort-btn" data-sort="quantity">
+                <i class="fas fa-sort"></i> Quantity
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- Giftz Card Template -->
-  <template id="giftz-card-template">
-    <div class="transaction-card giftz-card">
-      <div class="transaction-header">
-        <div class="card-badge"><i class="fas fa-gift"></i> Giftz</div>
-        <div class="transaction-time"></div>
-      </div>
-      <div class="transaction-body">
-        <div class="transaction-details">
-          <div class="transaction-users">
-            <span class="buyer"><i class="fas fa-user"></i> <span class="buyer-name"></span></span>
-          </div>
-          <div class="quantity-tag">
-            <i class="fas fa-layer-group"></i> <span class="quantity">1</span> GIFTZ
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card-container" id="burns-cards"></div>
           </div>
         </div>
       </div>
-    </div>
-  </template>
-
-  <!-- Craft Card Template -->
-  <template id="craft-card-template">
-    <div class="transaction-card craft-card">
-      <div class="transaction-header">
-        <div class="card-badge"><i class="fas fa-hammer"></i> Craft</div>
-        <div class="transaction-time"></div>
-      </div>
-      <div class="transaction-body">
-        <div class="card-name"></div>
-        <div class="transaction-details">
-          <div class="transaction-users">
-            <span class="crafter"><i class="fas fa-user"></i> <span class="crafter-name"></span></span>
+      
+      <!-- Crafts Tab -->
+      <div class="tab-pane fade" id="crafts-tab" role="tabpanel">
+        <div class="row mb-3 mt-3">
+          <div class="col-md-6">
+            <input type="text" class="form-control search-input" placeholder="Search crafts...">
           </div>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- Morph Card Template -->
-  <template id="morph-card-template">
-    <div class="transaction-card morph-card">
-      <div class="transaction-header">
-        <div class="card-badge"><i class="fas fa-magic"></i> Morph</div>
-        <div class="transaction-time"></div>
-      </div>
-      <div class="transaction-body">
-        <div class="card-name"></div>
-        <div class="transaction-details">
-          <div class="transaction-users">
-            <span class="morpher"><i class="fas fa-user"></i> <span class="morpher-name"></span></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- Burn Card Template -->
-  <template id="burn-card-template">
-    <div class="transaction-card burn-card">
-      <div class="transaction-header">
-        <div class="card-badge"><i class="fas fa-fire"></i> Burn</div>
-        <div class="transaction-time"></div>
-      </div>
-      <div class="transaction-body">
-        <div class="card-name"></div>
-        <div class="transaction-details">
-          <div class="transaction-users">
-            <span class="burner"><i class="fas fa-user"></i> <span class="burner-name"></span></span>
-          </div>
-          <div class="burn-amount">
-            <i class="fas fa-flame"></i> <span class="amount"></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- User Card Template - Enhanced for detailed activity information -->
-  <template id="user-card-template">
-    <div class="transaction-card user-card">
-      <div class="transaction-header">
-        <div class="card-badge"><i class="fas fa-user"></i> User</div>
-      </div>
-      <div class="transaction-body">
-        <div class="user-name"></div>
-        <div class="transaction-details">
-          <div class="user-activity">
-            <div class="activity-summary d-flex justify-content-between mb-2">
-              <div class="last-activity text-muted"></div>
-            </div>
-            
-            <div class="activity-counts d-flex flex-wrap mb-2">
-              <span class="trades me-3"><i class="fas fa-exchange-alt"></i> Trades: <span class="trades-count"></span></span>
-              <span class="trades-buy me-3"><i class="fas fa-shopping-cart"></i> Buys: <span class="trades-buy-count"></span></span>
-              <span class="trades-sell me-3"><i class="fas fa-tag"></i> Sells: <span class="trades-sell-count"></span></span>
-              <span class="transfers"><i class="fas fa-exchange-alt"></i> Transfers: <span class="transfers-count"></span></span>
-            </div>
-            
-            <!-- New section for recent activities -->
-            <div class="recent-activities mt-2">
-              <div class="text-muted">No recent activity information available</div>
+          <div class="col-md-6 text-end">
+            <div class="btn-group">
+              <button class="btn btn-outline-secondary sort-btn" data-sort="timestamp">
+                <i class="fas fa-sort"></i> Date
+              </button>
+              <button class="btn btn-outline-secondary sort-btn" data-sort="name">
+                <i class="fas fa-sort"></i> Name
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- API Documentation Modal -->
-  <div class="modal fade" id="api-docs-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="fas fa-book me-2"></i> API Documentation</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card-container" id="crafts-cards"></div>
+          </div>
         </div>
-        <div class="modal-body">
-          <div class="endpoint">
-            <h6><span class="badge bg-success">GET</span> /api/stats</h6>
-            <p>Returns overall statistics for the selected time period.</p>
-            <pre><code>{"total_trades": 120, "active_users": 45, "card_crafts": 28, ...}</code></pre>
+      </div>
+      
+      <!-- Morphs Tab -->
+      <div class="tab-pane fade" id="morphs-tab" role="tabpanel">
+        <div class="row mb-3 mt-3">
+          <div class="col-md-6">
+            <input type="text" class="form-control search-input" placeholder="Search morphs...">
           </div>
-          <div class="endpoint">
-            <h6><span class="badge bg-success">GET</span> /api/trades</h6>
-            <p>Returns recent trade activity on both networks.</p>
+          <div class="col-md-6 text-end">
+            <div class="btn-group">
+              <button class="btn btn-outline-secondary sort-btn" data-sort="timestamp">
+                <i class="fas fa-sort"></i> Date
+              </button>
+              <button class="btn btn-outline-secondary sort-btn" data-sort="cardName">
+                <i class="fas fa-sort"></i> Card
+              </button>
+            </div>
           </div>
-          <div class="endpoint">
-            <h6><span class="badge bg-success">GET</span> /api/activity</h6>
-            <p>Returns daily activity metrics for charting.</p>
-          </div>
-          <div class="endpoint">
-            <h6><span class="badge bg-success">GET</span> /api/cache/status</h6>
-            <p>Returns information about the current cache state.</p>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card-container" id="morphs-cards"></div>
           </div>
         </div>
       </div>
@@ -542,50 +254,16 @@
 
   <!-- Loading Overlay -->
   <div id="loading-overlay">
-    <div class="spinner-container">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="loading-text mt-2">Summoning data from the mythical realm...</p>
+    <div class="spinner-border text-light" role="status">
+      <span class="visually-hidden">Loading...</span>
     </div>
   </div>
 
+  <!-- Bootstrap and other libraries -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script type="module" src="js/index.js"></script>
-  <script>
-    // Directly activate the Burns tab on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      // Get the Burns tab button and click it
-      const burnsTab = document.getElementById('burns-tab');
-      if (burnsTab) {
-        setTimeout(() => {
-          burnsTab.click();
-        }, 500);
-      }
-    });
-  </script>
-
-  <!-- Charts.js Library -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   
   <!-- Application scripts -->
-  <script type="module" src="js/index.js"></script>
-  
-  <!-- Debug information -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Check if Chart.js is loaded
-      if (typeof Chart === 'undefined') {
-        console.error('Chart.js is not loaded!');
-      } else {
-        console.log('Chart.js is available, version:', Chart.version);
-      }
-      
-      // Log when canvas elements are available
-      const activityCanvas = document.getElementById('activity-chart');
-      console.log('Activity chart canvas found:', !!activityCanvas);
-    });
-  </script>
+  <script type="module" src="js/app-core.js"></script>
 </body>
 </html>

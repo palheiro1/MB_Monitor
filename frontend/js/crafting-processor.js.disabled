@@ -1,0 +1,29 @@
+/**
+ * Crafting Processor - DISABLED
+ * 
+ * This file was causing infinite loops by continuously fetching transactions.
+ * It has been disabled since we now use a more efficient approach that:
+ * 1. Loads crafting history from the stored JSON files
+ * 2. Only listens for new transactions from the contract account
+ * 
+ * See craft-listener.js for the new implementation.
+ */
+
+// All previous code has been removed to prevent the infinite loop
+console.log('[CRAFTING-PROCESSOR] This module has been disabled to prevent infinite API calls');
+
+export default {
+  // Just export empty functions to avoid breaking existing code
+  initialize() {
+    console.warn('[CRAFTING-PROCESSOR] Using disabled processor - no processing will occur');
+    return Promise.resolve();
+  },
+  
+  processCraftings() {
+    return Promise.resolve([]);
+  },
+  
+  processAsset() {
+    return Promise.resolve(null);
+  }
+};

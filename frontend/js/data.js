@@ -1,4 +1,10 @@
 /**
+ * @deprecated This file is being phased out in favor of frontend/js/data-manager/unified-data-manager.js.
+ * Please use the new component for all new development.
+ * This file will be removed in a future update.
+ */
+
+/**
  * Fetch morphing operations
  * @param {string} period - Time period (24h, 7d, 30d, all)
  * @returns {Promise<Object>} Morphing operations data

@@ -8,14 +8,7 @@
 
 import { getState } from '../state/index.js';
 import { showNotification } from './notifications.js';
-import { findNewTrades } from '../components/transactions/trades.js';
-import { findNewPolygonTransfers } from '../components/transactions/polygon-trades.js';
-import { findNewPolygonUsers } from '../components/transactions/polygon-users.js';
-import { findNewGiftzSales } from '../components/transactions/giftz.js';
-import { findNewCrafts } from '../components/transactions/crafts.js';
-import { findNewMorphs } from '../components/transactions/morphs.js';
-import { findNewBurns } from '../components/transactions/burns.js';
-import { findNewUsers } from '../components/transactions/users.js';
+import { findNewTrades, findNewPolygonTransfers, findNewPolygonUsers, findNewGiftzSales, findNewCrafts, findNewMorphs, findNewBurns, findNewUsers } from '../components/transaction-renderer.js';
 
 /**
  * Check for new activity since last update

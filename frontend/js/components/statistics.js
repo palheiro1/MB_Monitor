@@ -4,6 +4,7 @@
  * Handles updating statistics numbers in the dashboard
  */
 
+import { fetchTrades, fetchBurns, fetchCrafts, fetchMorphs, fetchUsers, fetchGiftz } from '../api/blockchain-client.js';
 import { formatNumber } from '../utils/formatters.js';
 
 /**

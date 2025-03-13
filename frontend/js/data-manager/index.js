@@ -6,7 +6,7 @@
 
 import { getState, setState } from '../state/index.js';
 import { updateStats } from '../components/statistics.js';
-import { renderAllCards } from '../components/transactions/index.js';
+import { renderAllCards } from '../components/transaction-renderer.js';
 import { 
   updateLastUpdateTimestamp, 
   showLoading,
@@ -14,7 +14,7 @@ import {
   showError,
   updateStatusBadge
 } from '../components/ui-manager.js';
-// Import all the necessary fetch functions from data.js
+// Import all the necessary fetch functions from unified-data-manager.js
 import {
   fetchTrades,
   fetchCrafts,
@@ -23,7 +23,7 @@ import {
   fetchUsers, 
   fetchGiftz,
   fetchActivityData
-} from '../api/data.js';
+} from '../data-manager/unified-data-manager.js';
 import { DEFAULT_PERIOD } from '../config.js';
 
 // API endpoints
@@ -52,7 +52,7 @@ export async function fetchAllData(shouldShowLoading = false) {
     }
 
     // Fetch all data in parallel with the current period
-    // Use the functions from data.js
+    // Use the functions from unified-data-manager.js
     const [tradesData, burnsData, craftsData, morphsData, giftzData, usersData, activityData] = await Promise.all([
       fetchTrades(currentPeriod),
       fetchBurns(currentPeriod),

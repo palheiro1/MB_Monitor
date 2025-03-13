@@ -3,7 +3,7 @@ const path = require('path');
 
 // Path to the GEM burns cache file
 const gemBurnsCachePath = path.join(__dirname, '../backend/storage/ardor_gem_burns.json');
-const allDataCachePath = path.join(__dirname, '../backend/storage/ardor_all_data.json');
+const allDataCachePath = path.join(__dirname, '../backend/storage/unified_all_data.json');
 
 console.log('GEM Burns Cache Cleaner');
 console.log('---------------------');

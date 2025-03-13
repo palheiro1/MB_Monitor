@@ -5,10 +5,7 @@
  * for easier imports throughout the application.
  */
 
-import { renderAllCards, renderAllCardsWithAnimation } from './transactions/index.js';
-import { renderCraftCards } from './transactions/crafts.js';
-import { renderBurnCards } from './transactions/burns.js';
-import { renderTradeCards } from './transactions/trades.js';
+import { renderAllCards, renderAllCardsWithAnimation, renderCraftCards, renderBurnCards, renderTradeCards } from './transaction-renderer.js';
 
 // Re-export the rendering functions
 export {

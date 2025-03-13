@@ -6,7 +6,7 @@
 
 import { getState, setState } from '../state/index.js';
 import { updateStats } from './statistics.js';
-import { renderAllCards } from './transactions/index.js';
+import { renderAllCards } from './transaction-renderer.js';
 import { fetchAllData } from '../data-manager/index.js';
 import { hideLoading, showLoading, updateLastUpdateTimestamp, updateStatusBadge } from './ui-manager.js';
 

@@ -1,4 +1,10 @@
 /**
+ * @deprecated This file is being phased out in favor of frontend/js/api/blockchain-client.js.
+ * Please use the new component for all new development.
+ * This file will be removed in a future update.
+ */
+
+/**
  * API Connector
  * 
  * Connects the new API client to the legacy app.
